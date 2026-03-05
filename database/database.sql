@@ -33,4 +33,20 @@ CREATE TABLE IF NOT EXISTS users (
 --  status: Available = visible to dealers
 -- ─────────────────────────────────────────────────────────
 
-
+CREATE TABLE IF NOT EXISTS produce (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  farmer_id      INT           NOT NULL,
+  farmer_name    VARCHAR(150)  NOT NULL,
+  name           VARCHAR(100)  NOT NULL,
+  category       ENUM('Fruit','Vegetable','Other') NOT NULL DEFAULT 'Other',
+  quantity       DECIMAL(10,2) NOT NULL,
+  unit           ENUM('kg','ton','pieces','crate') NOT NULL DEFAULT 'kg',
+  harvest_date   DATE          NOT NULL,
+  location       VARCHAR(150)  NOT NULL,
+  storage_temp   VARCHAR(50)   DEFAULT '',
+  fresh_days     INT           DEFAULT 0,
+  storage_tips   TEXT,
+  status         ENUM('Available','Reserved','Sold') NOT NULL DEFAULT 'Available',
+  listed_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE
+);
