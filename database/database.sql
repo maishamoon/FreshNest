@@ -50,3 +50,28 @@ CREATE TABLE IF NOT EXISTS produce (
   listed_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- ─────────────────────────────────────────────────────────
+--  TABLE 3: TRANSPORT REQUESTS
+--  Farmer requests transport for their produce
+--  status lifecycle: Open → Accepted → Completed
+--                    Open → Cancelled (by farmer)
+-- ─────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS transport_requests (
+  id               INT AUTO_INCREMENT PRIMARY KEY,
+  farmer_id        INT           NOT NULL,
+  farmer_name      VARCHAR(150)  NOT NULL,
+  produce_name     VARCHAR(100)  NOT NULL,
+  pickup_location  VARCHAR(200)  DEFAULT '',
+  destination      VARCHAR(200)  NOT NULL,
+  quantity         VARCHAR(100)  DEFAULT '',
+  pickup_date      DATE,
+  notes            TEXT,
+  status           ENUM('Open','Accepted','Completed','Cancelled') NOT NULL DEFAULT 'Open',
+  assigned_to      INT           DEFAULT NULL,
+  transporter_name VARCHAR(150)  DEFAULT NULL,
+  created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (farmer_id)   REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
+);
