@@ -75,3 +75,11 @@ CREATE TABLE IF NOT EXISTS transport_requests (
   FOREIGN KEY (farmer_id)   REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- ─────────────────────────────────────────────────────────
+--  SAMPLE DATA  (for demo — password is: demo1234)
+-- ─────────────────────────────────────────────────────────
+INSERT INTO users (name, email, password_hash, role, location) VALUES
+('Rahim Uddin',  'rahim@demo.com',  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'farmer',    'Rajshahi'),
+('Karim Transport', 'karim@demo.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'transport', 'Dhaka');
+
