@@ -71,4 +71,10 @@ function auth(roles = []) {
       return res.status(409).json({ success: false, error: 'Email already registered.' });
     
     // Hash password — never store plain text
+    const hash = await bcrypt.hash(password, 12);
+    const [result] = await pool.execute(
+      'INSERT INTO users (name, email, password_hash, role, location) VALUES (?, ?, ?, ?, ?)',
+      [name, email, hash, role, location]
+    );
+    
 
