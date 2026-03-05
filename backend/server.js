@@ -69,6 +69,40 @@ function auth(roles = []) {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch)
       return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+// Hash password — never store plain text
+    const hash = await bcrypt.hash(password, 12);
+
+    const [result] = await pool.execute(
+      'INSERT INTO users (name, email, password_hash, role, location) VALUES (?, ?, ?, ?, ?)',
+      [name, email, hash, role, location]
+    );
+
+    res.status(201).json({
+      success: true,
+      data: { id: result.insertId, name, email, role }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Registration failed.' });
+  }
+});
+
+  //POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password)
+      return res.status(400).json({ success: false, error: 'Email and password required.' });
+
+    const users = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+    if (!users.length)
+      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+
+    const user    = users[0];
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch)
+      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
 
     // Sign JWT — valid for 7 days
     const token = jwt.sign(
