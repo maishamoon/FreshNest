@@ -52,25 +52,22 @@ function auth(roles = []) {
 }
 // ═════════════════════════════════════════════════════════
 //  AUTH ROUTES
- // POST /api/auth/register
+// ═════════════════════════════════════════════════════════
 
-   app.post('/api/auth/login', async (req, res) => {
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password, role, location } = req.body;
 
-    if (!email || !password)
-      return res.status(400).json({ success: false, error: 'Email and password required.' });
+    if (!name || !email || !password || !role)
+      return res.status(400).json({ success: false, error: 'Name, email, password, and role are required.' });
 
-    const users = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
-    if (!users.length)
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    // Check if user already exists
+    const existingUsers = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+    if (existingUsers.length)
+      return res.status(400).json({ success: false, error: 'Email already registered.' });
 
-    const user    = users[0];
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch)
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
-
-// Hash password — never store plain text
+    // Hash password — never store plain text
     const hash = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
       'INSERT INTO users (name, email, password_hash, role, location) VALUES (?, ?, ?, ?, ?)',
@@ -79,7 +76,7 @@ function auth(roles = []) {
 
     res.status(201).json({
       success: true,
-      data: { id: result.insertId, name, email, role }
+      data: { id: result.insertId, name, email, role, location }
     });
   } catch (err) {
     console.error(err);
@@ -87,7 +84,7 @@ function auth(roles = []) {
   }
 });
 
-  //POST /api/auth/login
+// POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
