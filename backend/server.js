@@ -123,4 +123,107 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ success: false, error: 'Login failed.' });
   }
 });
+// ═════════════════════════════════════════════════════════
+// PRODUCE ROUTES (Feature 1 — Farmer only)
+// ═════════════════════════════════════════════════════════
+// PRODUCE ROUTES
 
+app.get('/api/produce', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'farmer') {
+      rows = await query('SELECT * FROM produce WHERE farmer_id = ? ORDER BY listed_at DESC', [req.user.id]);
+    } else {
+      rows = await query("SELECT * FROM produce WHERE status = 'Available' ORDER BY listed_at DESC");
+    }
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to fetch produce.' });
+  }
+});
+
+app.post('/api/produce', auth(['farmer']), async (req, res) => {
+  try {
+    const { name, quantity, harvest_date, location } = req.body;
+
+    if (!name || !quantity || !harvest_date || !location) {
+      return res.status(400).json({ success: false });
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO produce (farmer_id, farmer_name, name, quantity, harvest_date, location, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'Available')`,
+      [req.user.id, req.user.name, name, quantity, harvest_date, location]
+    );
+
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+// ═════════════════════════════════════════════════════════
+//  TRANSPORT ROUTES  (Feature 2 — Farmer only)
+// ═════════════════════════════════════════════════════════
+
+app.get('/api/transport', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'farmer') {
+      rows = await query('SELECT * FROM transport_requests WHERE farmer_id = ? ORDER BY created_at DESC', [req.user.id]);
+    } else {
+      rows = await query('SELECT * FROM transport_requests ORDER BY created_at DESC');
+    }
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to fetch transport requests.' });
+  }
+});
+app.post('/api/transport', auth(['farmer']), async (req, res) => {
+  try {
+    const { produce_name, destination, pickup_location = '', quantity = '', pickup_date = null, notes = '' } = req.body;
+
+    if (!produce_name || !destination)
+      return res.status(400).json({ success: false, error: 'produce_name and destination are required.' });
+
+    const [result] = await pool.execute(
+      `INSERT INTO transport_requests
+       (farmer_id, farmer_name, produce_name, pickup_location, destination, quantity, pickup_date, notes, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Open')`,
+      [req.user.id, req.user.name, produce_name, pickup_location, destination, quantity, pickup_date, notes]
+    );
+
+    const [newItem] = await query('SELECT * FROM transport_requests WHERE id = ?', [result.insertId]);
+    res.status(201).json({ success: true, data: newItem });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to create request.' });
+  }
+});
+
+app.patch('/api/transport/:id', auth(['farmer']), async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (status !== 'Cancelled')
+      return res.status(400).json({ success: false, error: 'Farmers can only cancel requests.' });
+
+    const items = await query('SELECT * FROM transport_requests WHERE id = ?', [req.params.id]);
+
+    if (!items.length)
+      return res.status(404).json({ success: false, error: 'Request not found.' });
+
+    if (items[0].farmer_id !== req.user.id)
+      return res.status(403).json({ success: false, error: 'Not your request.' });
+
+    await query('UPDATE transport_requests SET status = ? WHERE id = ?', ['Cancelled', req.params.id]);
+
+    res.json({ success: true, data: { message: 'Request cancelled.' } });
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to cancel.' });
+  }
+});
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+module.exports = app;
