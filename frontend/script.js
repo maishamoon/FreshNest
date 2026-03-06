@@ -104,3 +104,77 @@ async function loadStats() {
   document.getElementById('stat-transport').textContent = transportList.length;
   document.getElementById('stat-active').textContent    = produceList.filter(p => p.status === 'Available').length;
 }
+// ── PRODUCE ───────────────────────────────────────────────
+async function loadProduce() {
+  const res = await apiCall('GET', '/produce');
+  produceList = res.success ? res.data : [];
+  renderProduceTable();
+}
+function renderProduceTable() {
+  const wrap = document.getElementById('produce-table-wrap');
+  if (!produceList.length) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🌾</div><h4>No produce listed yet</h4><p>Click "Add Produce" to list your first crop</p></div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Produce</th><th>Category</th><th>Quantity</th>
+        <th>Harvest Date</th><th>Location</th><th>Status</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        ${produceList.map(p => `
+          <tr>
+            <td><strong>${p.name}</strong></td>
+            <td>${p.category}</td>
+            <td>${p.quantity} ${p.unit}</td>
+            <td>${p.harvest_date ? p.harvest_date.slice(0,10) : '—'}</td>
+            <td>${p.location}</td>
+            <td>${badgeProduce(p.status)}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteProduce(${p.id})">Remove</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function badgeProduce(s) {
+  const map = { Available:'badge-green', Sold:'badge-gray', Reserved:'badge-amber', Expired:'badge-red' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${s}</span>`;
+}
+
+async function addProduce() {
+  hideAlert('produce-alert');
+  const name       = document.getElementById('p-name').value.trim();
+  const category   = document.getElementById('p-category').value;
+  const quantity   = document.getElementById('p-quantity').value;
+  const unit       = document.getElementById('p-unit').value;
+  const harvestDate = document.getElementById('p-date').value;
+  const location   = document.getElementById('p-location').value.trim();
+  const storageTmp = document.getElementById('p-temp').value.trim();
+  const freshDays  = document.getElementById('p-freshdays').value || 0;
+  const tips       = document.getElementById('p-tips').value.trim();
+
+  if (!name || !quantity || !harvestDate || !location)
+    return showAlert('produce-alert', 'Please fill in all required fields (*).');
+
+  const res = await apiCall('POST', '/produce', {
+    name, category, quantity: +quantity, unit, harvest_date: harvestDate,
+    location, storage_temp: storageTmp, fresh_days: +freshDays, storage_tips: tips
+  });
+
+  if (!res.success) return showAlert('produce-alert', res.error || 'Failed to add produce.');
+
+  closeModal('modal-add-produce');
+  // Reset fields
+  ['p-name','p-quantity','p-date','p-location','p-temp','p-freshdays','p-tips'].forEach(id => document.getElementById(id).value = '');
+  loadProduce();
+  loadStats();
+}
+
+async function deleteProduce(id) {
+  if (!confirm('Remove this produce listing?')) return;
+  const res = await apiCall('DELETE', '/produce/' + id);
+  if (res.success) { loadProduce(); loadStats(); }
+  else alert(res.error || 'Failed to remove.');
+}
