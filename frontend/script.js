@@ -84,3 +84,23 @@ function doLogout() {
   transportList = [];
   showPage('login');
 }
+// ── DASHBOARD INIT ────────────────────────────────────────
+function initDashboard() {
+  document.getElementById('welcome-msg').textContent = `Hello, ${user.name}! 👋`;
+  document.getElementById('user-chip').textContent   = `👤 ${user.name}`;
+  document.getElementById('role-tag').textContent    = user.role === 'farmer' ? '🌾 Farmer' : user.role;
+  showSection('home');
+  loadStats();
+}
+
+async function loadStats() {
+  const [pr, tr] = await Promise.all([
+    apiCall('GET', '/produce'),
+    apiCall('GET', '/transport')
+  ]);
+  produceList   = pr.success   ? pr.data   : [];
+  transportList = tr.success   ? tr.data   : [];
+  document.getElementById('stat-produce').textContent   = produceList.length;
+  document.getElementById('stat-transport').textContent = transportList.length;
+  document.getElementById('stat-active').textContent    = produceList.filter(p => p.status === 'Available').length;
+}
