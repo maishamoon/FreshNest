@@ -169,6 +169,49 @@
           </div>
         </div>
       </div>
+          <!-- ── PRODUCE ── -->
+      <div class="section" id="section-produce">
+        <div class="section-header">
+          <div>
+            <h2>My Produce</h2>
+            <p>Manage your produce listings visible to dealers</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-produce')">+ Add Produce</button>
+        </div>
+        <div class="card">
+          <div id="produce-table-wrap">
+            <div class="empty">
+              <div class="empty-icon">🌾</div>
+              <h4>No produce listed yet</h4>
+              <p>Click "Add Produce" to list your first crop</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TRANSPORT ── -->
+      <div class="section" id="section-transport">
+        <div class="section-header">
+          <div>
+            <h2>Transport Requests</h2>
+            <p>Request transporters to pick up your produce</p>
+          </div>
+          <button class="btn btn-amber btn-sm" onclick="openModal('modal-add-transport')">+ New Request</button>
+        </div>
+        <div class="card">
+          <div id="transport-table-wrap">
+            <div class="empty">
+              <div class="empty-icon">🚛</div>
+              <h4>No transport requests yet</h4>
+              <p>Click "New Request" to arrange pickup</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /dashboard-body -->
+</div>
 
 </body>
 </html>
