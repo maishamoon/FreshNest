@@ -222,3 +222,8 @@ app.patch('/api/transport/:id', auth(['farmer']), async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to cancel.' });
   }
 });
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+module.exports = app;
