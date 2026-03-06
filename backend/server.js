@@ -158,6 +158,19 @@ app.post('/api/produce', auth(['farmer']), async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+app.delete('/api/produce/:id', auth(['farmer']), async (req, res) => {
+  try {
+    const items = await query('SELECT * FROM produce WHERE id = ?', [req.params.id]);
+    if (!items.length) return res.status(404).json({ success: false, error: 'Produce not found.' });
+    if (items[0].farmer_id !== req.user.id)
+      return res.status(403).json({ success: false, error: 'You can only remove your own listings.' });
+
+    await query('DELETE FROM produce WHERE id = ?', [req.params.id]);
+    res.json({ success: true, data: { message: 'Removed successfully.' } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to delete.' });
+  }
+});
 // ═════════════════════════════════════════════════════════
 //  TRANSPORT ROUTES  (Feature 2 — Farmer only)
 // ═════════════════════════════════════════════════════════
