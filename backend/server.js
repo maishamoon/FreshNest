@@ -123,4 +123,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ success: false, error: 'Login failed.' });
   }
 });
+// ═════════════════════════════════════════════════════════
+// PRODUCE ROUTES (Feature 1 — Farmer only)
+// ═════════════════════════════════════════════════════════
 
