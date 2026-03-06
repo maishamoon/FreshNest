@@ -42,4 +42,45 @@ async function apiCall(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(API + path, opts);
   return r.json();
+}// ── AUTH ──────────────────────────────────────────────────
+async function doLogin() {
+  hideAlert('login-alert');
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if (!email || !pass) return showAlert('login-alert', 'Please enter email and password.');
+
+  const res = await apiCall('POST', '/auth/login', { email, password: pass });
+  if (!res.success) return showAlert('login-alert', res.error || 'Login failed.');
+
+  token = res.data.token;
+  user  = res.data.user;
+  initDashboard();
+  showPage('dashboard');
+}
+
+async function doRegister() {
+  hideAlert('reg-alert');
+  hideAlert('reg-success');
+  const name     = document.getElementById('reg-name').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const role     = document.getElementById('reg-role').value;
+  const location = document.getElementById('reg-location').value.trim();
+
+  if (!name || !email || !password) return showAlert('reg-alert', 'Name, email and password are required.');
+  if (password.length < 6)          return showAlert('reg-alert', 'Password must be at least 6 characters.');
+
+  const res = await apiCall('POST', '/auth/register', { name, email, password, role, location });
+  if (!res.success) return showAlert('reg-alert', res.error || 'Registration failed.');
+
+  showAlert('reg-success', '✅ Account created! You can now login.', 'success');
+  setTimeout(() => showPage('login'), 1500);
+}
+
+function doLogout() {
+  token = '';
+  user  = null;
+  produceList = [];
+  transportList = [];
+  showPage('login');
 }
