@@ -47,5 +47,42 @@
   .auth-box { width:100%; max-width:420px; }
   .auth-box h2 { font-family:'Playfair Display',serif; font-size:30px; margin-bottom:6px; }
   .auth-box .sub { color:var(--muted); font-size:14px; margin-bottom:32px; }
+ /* ── FORM ── */
+  .form-group { margin-bottom:18px; }
+  label { display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px; letter-spacing:.3px; }
+  input, select, textarea {
+    width:100%; padding:12px 16px; border:1.5px solid var(--border);
+    border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px;
+    background:white; color:var(--text); transition:border .2s, box-shadow .2s; outline:none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color:var(--green2); box-shadow:0 0 0 3px rgba(45,122,79,.1);
+  }
+  textarea { resize:vertical; min-height:80px; }
+  select { cursor:pointer; }
+
+  .btn {
+    width:100%; padding:13px; border:none; border-radius:10px;
+    font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600;
+    cursor:pointer; transition:all .2s; letter-spacing:.2px;
+  }
+  .btn-primary { background:var(--green); color:white; }
+  .btn-primary:hover { background:var(--green2); transform:translateY(-1px); box-shadow:0 6px 20px rgba(26,74,46,.25); }
+  .btn-amber { background:var(--amber); color:white; }
+  .btn-amber:hover { background:#d4911a; transform:translateY(-1px); box-shadow:0 6px 20px rgba(232,160,32,.3); }
+  .btn-outline { background:transparent; border:1.5px solid var(--border); color:var(--text); }
+  .btn-outline:hover { border-color:var(--green2); color:var(--green2); }
+  .btn-sm { width:auto; padding:9px 18px; font-size:13px; }
+  .btn-danger { background:#fee2e2; color:var(--danger); border:none; }
+  .btn-danger:hover { background:#fecaca; }
+
+  .switch-link { text-align:center; margin-top:20px; font-size:14px; color:var(--muted); }
+  .switch-link a { color:var(--green2); font-weight:600; cursor:pointer; text-decoration:none; }
+  .switch-link a:hover { text-decoration:underline; }
+
+  .alert { padding:12px 16px; border-radius:10px; font-size:14px; margin-bottom:16px; display:none; }
+  .alert-error { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+  .alert-success { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+  .alert.show { display:block; }
 
  
