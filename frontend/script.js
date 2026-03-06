@@ -178,3 +178,81 @@ async function deleteProduce(id) {
   if (res.success) { loadProduce(); loadStats(); }
   else alert(res.error || 'Failed to remove.');
 }
+// ── TRANSPORT ─────────────────────────────────────────────
+async function loadTransport() {
+  const res = await apiCall('GET', '/transport');
+  transportList = res.success ? res.data : [];
+  renderTransportTable();
+}
+
+function renderTransportTable() {
+  const wrap = document.getElementById('transport-table-wrap');
+  if (!transportList.length) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🚛</div><h4>No transport requests yet</h4><p>Click "New Request" to arrange pickup</p></div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Produce</th><th>Pickup</th><th>Destination</th>
+        <th>Quantity</th><th>Date</th><th>Status</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        ${transportList.map(t => `
+          <tr>
+            <td><strong>${t.produce_name}</strong></td>
+            <td>${t.pickup_location || '—'}</td>
+            <td>${t.destination}</td>
+            <td>${t.quantity || '—'}</td>
+            <td>${t.pickup_date ? t.pickup_date.slice(0,10) : '—'}</td>
+            <td>${badgeTransport(t.status)}</td>
+            <td>${t.status==='Open' ? `<button class="btn btn-danger btn-sm" onclick="cancelTransport(${t.id})">Cancel</button>` : '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function badgeTransport(s) {
+  const map = { Open:'badge-blue', Accepted:'badge-amber', Completed:'badge-green', Cancelled:'badge-gray', Failed:'badge-red' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${s}</span>`;
+}
+
+async function addTransport() {
+  hideAlert('transport-alert');
+  const produce  = document.getElementById('t-produce').value.trim();
+  const dest     = document.getElementById('t-dest').value.trim();
+  const pickup   = document.getElementById('t-pickup').value.trim();
+  const qty      = document.getElementById('t-quantity').value.trim();
+  const date     = document.getElementById('t-date').value;
+  const notes    = document.getElementById('t-notes').value.trim();
+
+  if (!produce || !dest) return showAlert('transport-alert', 'Produce name and destination are required (*).');
+
+  const res = await apiCall('POST', '/transport', {
+    produce_name: produce, destination: dest, pickup_location: pickup,
+    quantity: qty, pickup_date: date || null, notes
+  });
+
+  if (!res.success) return showAlert('transport-alert', res.error || 'Failed to submit request.');
+
+  closeModal('modal-add-transport');
+  ['t-produce','t-dest','t-pickup','t-quantity','t-date','t-notes'].forEach(id => document.getElementById(id).value = '');
+  loadTransport();
+  loadStats();
+}
+
+async function cancelTransport(id) {
+  if (!confirm('Cancel this transport request?')) return;
+  const res = await apiCall('PATCH', '/transport/' + id, { status: 'Cancelled' });
+  if (res.success) loadTransport();
+  else alert(res.error || 'Failed to cancel.');
+}
+
+// ── CLOSE MODALS ON OVERLAY CLICK ─────────────────────────
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// ── ENTER KEY LOGIN ───────────────────────────────────────
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
