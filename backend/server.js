@@ -126,4 +126,38 @@ app.post('/api/auth/login', async (req, res) => {
 // ═════════════════════════════════════════════════════════
 // PRODUCE ROUTES (Feature 1 — Farmer only)
 // ═════════════════════════════════════════════════════════
+// PRODUCE ROUTES
 
+app.get('/api/produce', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'farmer') {
+      rows = await query('SELECT * FROM produce WHERE farmer_id = ? ORDER BY listed_at DESC', [req.user.id]);
+    } else {
+      rows = await query("SELECT * FROM produce WHERE status = 'Available' ORDER BY listed_at DESC");
+    }
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to fetch produce.' });
+  }
+});
+
+app.post('/api/produce', auth(['farmer']), async (req, res) => {
+  try {
+    const { name, quantity, harvest_date, location } = req.body;
+
+    if (!name || !quantity || !harvest_date || !location) {
+      return res.status(400).json({ success: false });
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO produce (farmer_id, farmer_name, name, quantity, harvest_date, location, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'Available')`,
+      [req.user.id, req.user.name, name, quantity, harvest_date, location]
+    );
+
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
