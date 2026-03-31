@@ -76,6 +76,32 @@ CREATE TABLE IF NOT EXISTS transport_requests (
   INDEX idx_status   (status)
 ) ENGINE=InnoDB;
 
+-- ────────────────────────────────────────────────────────────
+--  DEALS
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS deals (
+  id                    INT AUTO_INCREMENT PRIMARY KEY,
+  dealer_id             INT          NOT NULL,
+  dealer_name           VARCHAR(150) NOT NULL,
+  farmer_id             INT          NOT NULL,
+  farmer_name           VARCHAR(150) NOT NULL,
+  product_id            INT          DEFAULT NULL,
+  produce_name          VARCHAR(100) NOT NULL,
+  quantity_requested    VARCHAR(100) DEFAULT '',
+  offered_price_per_kg  DECIMAL(10,2) NOT NULL,
+  message               TEXT,
+  status                ENUM('Pending','Accepted','Declined','Cancelled') NOT NULL DEFAULT 'Pending',
+  created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  responded_at          DATETIME     DEFAULT NULL,
+  FOREIGN KEY (dealer_id)  REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (farmer_id)  REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES produce(id) ON DELETE SET NULL,
+  INDEX idx_dealer (dealer_id),
+  INDEX idx_farmer (farmer_id),
+  INDEX idx_status (status)
+) ENGINE=InnoDB;
+
+
 -- SAMPLE DATA (password: demo1234)
 INSERT INTO users (name, email, password_hash, role, location) VALUES
 ('Rahim Uddin', 'rahim@demo.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'farmer', 'Rajshahi'),
