@@ -1,3 +1,9 @@
+-- ============================================================
+--  FreshNest — MySQL Database Schema
+--  Post-Harvest Storage & Logistics Management System
+--  Run: mysql -u root -p < database.sql
+-- ============================================================
+
 CREATE DATABASE IF NOT EXISTS freshnest_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
@@ -10,11 +16,15 @@ CREATE TABLE IF NOT EXISTS users (
   name          VARCHAR(150)  NOT NULL,
   email         VARCHAR(200)  NOT NULL UNIQUE,
   password_hash VARCHAR(255)  NOT NULL,
-  role          ENUM('farmer','transport','dealer') NOT NULL DEFAULT 'farmer',
+  role          ENUM('farmer','transport','dealer','admin') NOT NULL DEFAULT 'farmer',
   location      VARCHAR(150)  DEFAULT '',
+  vehicle_type  VARCHAR(150)  DEFAULT '',
   is_active     TINYINT(1)    NOT NULL DEFAULT 1,
-  created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+  created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_email (email),
+  INDEX idx_role  (role)
+) ENGINE=InnoDB;
 
 -- TABLE 2: PRODUCE
 CREATE TABLE IF NOT EXISTS produce (
