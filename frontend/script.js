@@ -47,3 +47,7 @@ onst SEED_TRANS = [
 const SEED_DEALS = [
   { id:'d1', dealerId:'deal1', dealerName:'Dhaka Fresh Ltd', farmerId:'farm1', farmerName:'Rahim Uddin', product:'Mango', productId:'p1', quantity:'200 kg', price:'80', status:'Pending', created:'2026-01-26' },
 ];
+// ─── API CONFIG ───────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:5000/api';
+
+function today() { return new Date().toISOString().slice(0,10); }
