@@ -471,6 +471,7 @@ openModal(`<div class="modal">
     </div>
     up22up
   </div>`);
+  
   updateStorageTip();
 }
 
@@ -498,24 +499,31 @@ if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','
       harvest_date: date, location: loc,
       storage_temp: info.temp||'', storage_humidity: info.humidity||'',
       fresh_days: info.freshDays||0, storage_tips: info.tips||''
+
     })});
+
     state.products.push(normProduce(item));
     closeModal();
     renderMyProducts();
-  } catch(e) {
+  } c
+  atch(e) {
     showAlert('add-prod-alert', e.message || 'Failed to add produce.', 'danger');
   }
 }
 async function removeProduct(id) {
-  try {
+  t
+  ry {
     await apiFetch('/produce/'+id, { method:'DELETE' });
     state.products = state.products.filter(p=>p.id!==id);
     renderMyProducts();
-  } catch(e) {
+  } 
+  catch(e) {
     showAlert('prod-alert', e.message || 'Failed to remove.', 'danger');
   }
 }
-function renderTransportReqs() {
+
+function renderTransportReqs() 
+{
   const myT = state.trans.filter(t=>t.farmerId===state.user.id);
   const myP = state.products.filter(p=>p.farmerId===state.user.id);
   document.getElementById('page-body').innerHTML = `
@@ -531,9 +539,11 @@ function renderTransportReqs() {
       <thead><tr><th>Produce</th><th>Pickup</th><th>Destination</th><th>Date</th><th>Quantity</th><th>Transporter</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${myT.map(t=>`<tr>
         <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
+
         <td>📍${t.pickup}</td><td>📍${t.destination}</td><td>${t.date}</td><td>${t.quantity}</td>
         <td>${t.transporterName||'<span style="color:#8FA8A0">Unassigned</span>'}</td>
         <td>${badge(t.status)}</td>
+
         <td>${t.status==='Open'?`<button class="btn btn-sm" style="background:#C0392B;color:white" onclick="cancelTransport('${t.id}')">Cancel</button>`:'—'}</td>
       </tr>`).join('')}</tbody>
 
@@ -544,10 +554,12 @@ function openAddTransport() {
 
 
   const myP = state.products.filter(p=>p.farmerId===state.user.id);
+
   openModal(`<div class="modal">
     <div class="modal-header"><span class="modal-title">🚛 New Transport Request</span><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
       <div id="at-alert"></div>
+
       <div class="form-group"><label class="form-label">Select Produce</label>
         <select class="form-control" id="at-prod">
           <option value="">-- Select Produce --</option>
@@ -563,7 +575,8 @@ function openAddTransport() {
       <div class="form-grid-2">
         <div class="form-group"><label class="form-label">Pickup Date</label><input class="form-control" type="date" id="at-date" value="${today()}"></div>
         <div class="form-group"><label class="form-label">Quantity</label><input class="form-control" id="at-qty" placeholder="e.g. 500 kg"></div>
-      </div>
+     
+        </div>
       <div class="form-group"><label class="form-label">Special Instructions</label><textarea class="form-control" id="at-notes" placeholder="e.g. Refrigerated vehicle required..."></textarea></div>
       <button class="btn btn-primary btn-full" onclick="submitTransport()">Submit Request</button>
     </div>
@@ -616,6 +629,7 @@ function renderFarmerDeals()
 
 {
   const myD = state.deals.filter(d=>d.farmerId===state.user.id);
+ 
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>My Deals</h2></div>
     <div id="deal-alert"></div>
@@ -688,33 +702,46 @@ function produceCard(name, info) {
       <div class="produce-info-row"><span class="produce-info-label">🗓️ Fresh Duration</span><span class="produce-info-val">${info.freshDays} days</span></div>
       <div class="storage-tip" style="margin-top:8px;margin-bottom:0">${info.tips}</div>
     </div>
+
   </div>`;
 }
 // ──────────────────────────────────────────────────────────────────────────────
 //  TRANSPORT PAGES
 // ──────────────────────────────────────────────────────────────────────────────
-function renderTransportDashboard() {
+
+function renderTransportDashboard()
+ {
+
   const u = state.user;
   const myJobs = state.trans.filter(t=>t.assignedTo===u.id);
   const myFail = state.failures.filter(f=>f.transporterId===u.id);
+
   document.getElementById('page-body').innerHTML = `
     <div class="hero-banner" style="background:linear-gradient(135deg,#7E5109,#CA6F1E,#E67E22)">
+
       <div class="inner"><h2>Welcome, ${u.name}! 🚛</h2><p>Browse open transport requests, accept jobs, and manage your deliveries efficiently.</p></div>
     </div>
+
     <div class="stats-grid">
+
       <div class="stat-card green" data-icon="📋"><div class="stat-value">${state.trans.filter(t=>t.status==='Open').length}</div><div class="stat-label">Open Requests</div><div class="stat-sub">Available to accept</div></div>
       <div class="stat-card gold" data-icon="🗓️"><div class="stat-value">${myJobs.filter(j=>j.status==='Accepted').length}</div><div class="stat-label">Active Jobs</div><div class="stat-sub">In progress</div></div>
       <div class="stat-card forest" data-icon="✅"><div class="stat-value">${myJobs.filter(j=>j.status==='Completed').length}</div><div class="stat-label">Completed</div><div class="stat-sub">Delivered</div></div>
       <div class="stat-card sage" data-icon="⚠️"><div class="stat-value">${myFail.length}</div><div class="stat-label">Failures Reported</div><div class="stat-sub">Incidents</div></div>
     </div>
+
     <div class="card">
+
       <div class="card-header"><div class="card-title">🔥 Open Requests Nearby</div><button class="btn btn-sm btn-primary" onclick="navigate('offers')">View All</button></div>
       <div class="card-body table-wrap">
+
       <table class="data-table">
+
         <thead><tr><th>Farmer</th><th>Produce</th><th>Route</th><th>Date</th><th>Action</th></tr></thead>
         <tbody>${state.trans.filter(t=>t.status==='Open').slice(0,5).map(t=>`<tr>
           <td>${t.farmerName}</td><td>${produceEmoji(t.product)} ${t.product}</td>
           <td>${t.pickup} → ${t.destination}</td><td>${t.date}</td>
+
           <td><button class="btn btn-sm btn-primary" onclick="acceptJob('${t.id}')">Accept</button></td>
         </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#8FA8A0;padding:20px">No open requests</td></tr>'}</tbody>
       </table></div>
@@ -722,23 +749,28 @@ function renderTransportDashboard() {
   `;
 }
 
-function renderBrowseRequests() {
+function renderBrowseRequests()
+ {
   const open = state.trans.filter(t=>t.status==='Open');
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>Browse Requests</h2></div>
+
     <div id="offer-alert"></div>
     ${open.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">📋</div><p>No open requests at the moment.</p></div></div>`:`
     <div class="card"><div class="card-body table-wrap">
     <table class="data-table">
+
       <thead><tr><th>Farmer</th><th>Produce</th><th>Pickup</th><th>Destination</th><th>Date</th><th>Qty</th><th>Notes</th><th>Action</th></tr></thead>
       <tbody>${open.map(t=>`<tr>
         <td><strong>${t.farmerName}</strong></td>
         <td>${produceEmoji(t.product)} ${t.product}</td>
         <td>📍${t.pickup}</td><td>📍${t.destination}</td>
+
         <td>${t.date}</td><td>${t.quantity}</td>
         <td style="max-width:150px;font-size:.8rem;color:var(--slate)">${t.notes||'—'}</td>
         <td><button class="btn btn-sm btn-primary" onclick="acceptJob('${t.id}')">✓ Accept</button></td>
       </tr>`).join('')}</tbody>
+
     </table></div></div>`}
   `;
 }
@@ -751,19 +783,23 @@ async function acceptJob(id) {
   } catch(e) { alert('Failed: '+e.message); }
 }
 
-function renderMyJobs() {
+function renderMyJobs() 
+{
   const mine = state.trans.filter(t=>t.assignedTo===state.user.id);
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>My Jobs</h2></div>
+
     <div id="job-alert"></div>
     ${mine.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🗓️</div><p>No accepted jobs yet. Browse open requests.</p></div></div>`:`
     <div class="card"><div class="card-body table-wrap">
     <table class="data-table">
+
       <thead><tr><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${mine.map(t=>`<tr>
         <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
         <td>${t.pickup} → ${t.destination}</td>
         <td>${t.date}</td><td>${t.quantity}</td>
+
         <td>${badge(t.status)}</td>
         <td>${t.status==='Accepted'?`<button class="btn btn-sm btn-primary" onclick="completeJob('${t.id}')">✓ Delivered</button>`:'—'}</td>
       </tr>`).join('')}</tbody>
@@ -782,12 +818,14 @@ async function completeJob(id) {
 function renderFailures() {
   const myFail = state.failures.filter(f=>f.transporterId===state.user.id);
   const myJobs = state.trans.filter(t=>t.assignedTo===state.user.id && t.status==='Accepted');
+
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>Delivery Failures</h2><button class="btn btn-gold" onclick="openReportFailure()">⚠️ Report Failure</button></div>
     <div id="fail-alert"></div>
     ${myFail.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">✅</div><p>No failures reported. Keep up the good work!</p></div></div>`:''}
     ${myFail.map(f=>`
       <div class="failure-card">
+
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <div style="font-weight:700;color:var(--amber);font-size:1.05rem">${produceEmoji(f.product)} ${f.product}</div>
@@ -796,6 +834,7 @@ function renderFailures() {
             ${f.notes?`<div style="font-size:.82rem;color:var(--slate);margin-top:3px;font-style:italic">"${f.notes}"</div>`:''}
           </div>
           <span class="badge badge-gold">Failure Reported</span>
+
         </div>
         <div class="alternatives-box">
           <h4>🔄 Suggested Alternative Actions</h4>
@@ -820,17 +859,20 @@ const ALTERNATIVES = [
 function openReportFailure() {
   const jobs = state.trans.filter(t=>t.assignedTo===state.user.id && t.status==='Accepted');
   openModal(`<div class="modal">
+
     <div class="modal-header"><span class="modal-title">⚠️ Report Delivery Failure</span><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
       <div id="rf-alert"></div>
       <div class="form-group"><label class="form-label">Select Job</label>
         <select class="form-control" id="rf-job">
           <option value="">-- Select Active Job --</option>
+
           ${jobs.map(j=>`<option value="${j.id}">${j.product} — ${j.pickup} → ${j.destination}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Failure Reason</label>
         <select class="form-control" id="rf-reason">
+
           <option value="">-- Select Reason --</option>
           ${FAIL_REASONS.map(r=>`<option>${r}</option>`).join('')}
         </select>
@@ -843,23 +885,28 @@ function openReportFailure() {
   </div>`);
 }
 
-async function submitFailure() {
+async function submitFailure() 
+{
   const jobId = document.getElementById('rf-job').value;
+
   const reason = document.getElementById('rf-reason').value;
   if(!jobId||!reason) return showAlert('rf-alert','Please select a job and reason.','danger');
   const job = state.trans.find(t=>t.id===jobId);
   const alts = ALTERNATIVES.filter(()=>Math.random()>.3).slice(0,4);
+
   try {
     const fail = await apiFetch('/failures', { method:'POST', body: JSON.stringify({
       transport_request_id: jobId, produce_name: job?.product,
       route: `${job?.pickup} → ${job?.destination}`,
       reason, notes: document.getElementById('rf-notes').value, alternatives: alts
     })});
+
     state.failures.push(normFail(fail));
     state.trans = state.trans.map(t=>t.id===jobId?{...t,status:'Failed'}:t);
     closeModal();
     renderFailures();
-  } catch(e) {
+  }
+   catch(e) {
     showAlert('rf-alert', e.message || 'Failed to submit.', 'danger');
   }
 }
@@ -1089,7 +1136,7 @@ function renderAdminDashboard()
     </div>
 
     <div class="info-grid">
-    
+
       <div class="card">
         <div class="card-header"><div class="card-title">👥 Users by Role</div></div>
 
