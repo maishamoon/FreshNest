@@ -160,4 +160,31 @@ function quickLogin(email, pass) {
   }
  doLogin();
 }
-
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  if (!email || !pass) return showAlert('auth-alert','Email and password required.','danger');
+  try {
+    showAlert('auth-alert','Signing in...','info');
+    const data = await apiFetch('/auth/login', { method:'POST', body: JSON.stringify({ email, password: pass }) });
+    state.token = data.token;
+    state.user  = { ...data.user, vehicle: data.user.vehicle||'' };
+    // persist session
+    try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
+    await loadAll();
+    initApp();
+  } catch(e) {
+    if (e.message && e.message.toLowerCase().includes('failed to fetch')) {
+      const user = SEED_USERS.find(u => u.email === email && u.password === pass);
+      if (user) {
+        state.user  = { ...user, vehicle: user.vehicle || '' };
+        state.token = 'demo-token';
+        try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
+        loadDemoData();
+        initApp();
+        return;
+      }
+    }
+    showAlert('auth-alert', e.message || 'Invalid email or password.', 'danger');
+  }
+}
