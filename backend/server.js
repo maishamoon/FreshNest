@@ -235,3 +235,17 @@ app.post('/api/produce', auth(['farmer']), async (req, res) => {
     error(res, 'Failed to add produce.', 500);
   }
 });
+
+/** DELETE /api/produce/:id — Farmer (own) or Admin */
+app.delete('/api/produce/:id', auth(['farmer', 'admin']), async (req, res) => {
+  try {
+    const item = await query('SELECT * FROM produce WHERE id = ?', [req.params.id]);
+    if (!item.length) return error(res, 'Produce not found.', 404);
+    if (req.user.role === 'farmer' && item[0].farmer_id !== req.user.id) return error(res, 'Not your listing.', 403);
+
+    await query('DELETE FROM produce WHERE id = ?', [req.params.id]);
+    success(res, { message: 'Produce removed.' });
+  } catch (err) {
+    error(res, 'Failed to delete produce.', 500);
+  }
+});
