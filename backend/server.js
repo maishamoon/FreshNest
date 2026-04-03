@@ -281,3 +281,22 @@ app.get('/api/transport', auth(), async (req, res) => {
     error(res, 'Failed to fetch transport requests.', 500);
   }
 });
+
+/** POST /api/transport — Farmer only */
+app.post('/api/transport', auth(['farmer']), async (req, res) => {
+  try {
+    const { product_id, produce_name, pickup_location, destination, pickup_date, quantity, notes } = req.body;
+    if (!produce_name || !destination) return error(res, 'Produce and destination required.');
+
+    const [result] = await pool.execute(
+      `INSERT INTO transport_requests (farmer_id, farmer_name, product_id, produce_name, pickup_location, destination, pickup_date, quantity, notes, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open')`,
+      [req.user.id, req.user.name, product_id || null, produce_name, pickup_location || '', destination, pickup_date, quantity || '', notes || '']
+    );
+
+    const [newItem] = await query('SELECT * FROM transport_requests WHERE id = ?', [result.insertId]);
+    success(res, newItem, 201);
+  } catch (err) {
+    error(res, 'Failed to create transport request.', 500);
+  }
+});
