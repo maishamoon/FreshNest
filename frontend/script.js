@@ -86,4 +86,8 @@ function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.fa
     farmerId: d.farmer_id, farmerName: d.farmer_name, product: d.produce_name,
     productId: d.product_id, quantity: d.quantity_requested, price: d.offered_price_per_kg,
     msg: d.message, created: (d.created_at||'').slice(0,10) }; }
-
+function normFail(f)    { return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
+    requestId: f.transport_request_id, product: f.produce_name,
+    alternatives: typeof f.alternatives === 'string' ? JSON.parse(f.alternatives||'[]') : (f.alternatives||[]),
+    reported: (f.reported_at||'').slice(0,10) }; }
+    
