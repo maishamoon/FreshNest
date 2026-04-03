@@ -82,5 +82,8 @@ function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.fa
     product: t.produce_name, productId: t.product_id, pickup: t.pickup_location,
     date: t.pickup_date, assignedTo: t.assigned_to, transporterName: t.transporter_name,
     created: (t.created_at||'').slice(0,10) }; }
-    
+    function normDeal(d)    { return { ...d, dealerId: d.dealer_id, dealerName: d.dealer_name,
+    farmerId: d.farmer_id, farmerName: d.farmer_name, product: d.produce_name,
+    productId: d.product_id, quantity: d.quantity_requested, price: d.offered_price_per_kg,
+    msg: d.message, created: (d.created_at||'').slice(0,10) }; }
 
