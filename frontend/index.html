@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FreshNest</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- ══════════════════════════════════════════
-     PAGE 1: LOGIN
-══════════════════════════════════════════ -->
-<div id="page-login" class="page active">
+<!-- ============================================================
+     AUTH PAGE
+     ============================================================ -->
+<div id="auth-page">
   <div class="auth-left">
     <div class="auth-brand">
       <span class="logo-icon">🌿</span>
@@ -59,232 +59,114 @@
     </div>
   </div>
   <div class="auth-right">
-    <div class="auth-box">
-      <h2>Create account</h2>
-      <p class="sub">Start managing your harvest today</p>
-      <div class="alert alert-error" id="reg-alert"></div>
-      <div class="alert alert-success" id="reg-success"></div>
-      <div class="form-row">
+    <div class="auth-card">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Sign in to your account or create a new one</p>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+      </div>
+      <div id="auth-alert"></div>
+
+            <!-- LOGIN FORM -->
+      <div id="login-form">
         <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="reg-name" placeholder="Rahim Uddin">
+          <label class="form-label">Email Address</label>
+          <input class="form-control" type="email" id="login-email" placeholder="your@email.com">
         </div>
         <div class="form-group">
-          <label>Role</label>
-          <select id="reg-role">
+          <label class="form-label">Password</label>
+          <input class="form-control" type="password" id="login-pass" placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doLogin()" style="margin-top:6px;">Sign In →</button>
+        <div class="demo-chips">
+          <p>Quick Demo Login</p>
+          <span class="demo-chip" onclick="quickLogin('admin@harvest.bd','admin123')">⚙️ Admin</span>
+          <span class="demo-chip" onclick="quickLogin('rahim@farm.bd','pass123')">🌾 Farmer</span>
+          <span class="demo-chip" onclick="quickLogin('karim@trans.bd','pass123')">🚛 Transport</span>
+          <span class="demo-chip" onclick="quickLogin('dhaka@fresh.bd','pass123')">🏪 Dealer</span>
+          <span class="demo-chip" onclick="quickLogin('chittagong@fresh.bd','pass123')">🏪 Chittagong</span>
+        </div>
+      </div>
+
+    <!-- REGISTER FORM -->
+      <div id="register-form" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-control" id="reg-name" placeholder="Your full name">
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-control" id="reg-email" type="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input class="form-control" id="reg-pass" type="password">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select class="form-control" id="reg-role" onchange="toggleRoleFields()">
             <option value="farmer">🌾 Farmer</option>
-            <option value="transport">🚛 Transporter</option>
-            <option value="dealer">🤝 Dealer</option>
+            <option value="transport">🚛 Transport Provider</option>
+            <option value="dealer">🏪 Dealer / Supplier</option>
           </select>
         </div>
-      </div>
-      <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" id="reg-email" placeholder="you@example.com">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="reg-password" placeholder="Min. 6 characters">
+        <div id="field-location" class="form-group">
+          <label class="form-label">District / Location</label>
+          <input class="form-control" id="reg-location" placeholder="e.g. Rajshahi">
         </div>
-        <div class="form-group">
-          <label>Location</label>
-          <input type="text" id="reg-location" placeholder="e.g. Rajshahi">
+        <div id="field-vehicle" class="form-group" style="display:none;">
+          <label class="form-label">Vehicle Type</label>
+          <input class="form-control" id="reg-vehicle" placeholder="e.g. Refrigerated Truck">
         </div>
+        <button class="btn btn-gold btn-full" onclick="doRegister()">Create Account</button>
       </div>
-      <button class="btn btn-amber" onclick="doRegister()">Create Account</button>
-      <div class="switch-link">Already have an account? <a onclick="showPage('login')">Login here</a></div>
     </div>
   </div>
 </div>
-<!-- ══════════════════════════════════════════
-     PAGE 3: DASHBOARD
-══════════════════════════════════════════ -->
-<div id="page-dashboard" class="page">
-  <!-- Navbar -->
-  <div class="navbar">
-    <div class="navbar-brand">
-      <span>🌿</span>
-      <h1>FreshNest</h1>
-    </div>
-    <div class="navbar-right">
-      <div class="user-chip" id="user-chip">👤 Farmer</div>
-      <button class="btn-logout" onclick="doLogout()">Logout</button>
-    </div>
-  </div>
-  <div class="dashboard-body">
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div class="sidebar-title">Menu</div>
-      <div class="nav-item active" onclick="showSection('home')" id="nav-home">
-        <span class="nav-icon">🏠</span> Overview
-      </div>
-      <div class="nav-item" onclick="showSection('produce')" id="nav-produce">
-        <span class="nav-icon">🌾</span> My Produce
-      </div>
-      <div class="nav-item" onclick="showSection('transport')" id="nav-transport">
-        <span class="nav-icon">🚛</span> Transport
-      </div>
-    </div>
- <!-- Main -->
-    <div class="main-content">
-    <!-- ── OVERVIEW ── -->
-      <div class="section active" id="section-home">
-        <div class="section-header">
-          <div>
-            <h2 id="welcome-msg">Good morning! 👋</h2>
-            <p>Here's an overview of your farm activity</p>
-          </div>
-          <span class="tag-role" id="role-tag">🌾 Farmer</span>
-        </div>
-        <div class="stats-row">
-          <div class="stat-card">
-            <div class="stat-icon green">🌾</div>
-            <div>
-              <div class="stat-num" id="stat-produce">0</div>
-              <div class="stat-label">Produce Listed</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon amber">🚛</div>
-            <div>
-              <div class="stat-num" id="stat-transport">0</div>
-              <div class="stat-label">Transport Requests</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon blue">✅</div>
-            <div>
-              <div class="stat-num" id="stat-active">0</div>
-              <div class="stat-label">Active Listings</div>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-body" style="padding:28px 32px;">
-            <p style="font-size:14px;color:var(--muted);line-height:1.8;">
-              Welcome to <strong>HarvestLink BD</strong> — your platform for managing post-harvest produce, logistics, and dealer connections.
-              Use the sidebar to navigate to <strong>My Produce</strong> to list your crops, or <strong>Transport</strong> to arrange pickup and delivery.
-            </p>
-          </div>
+<!-- ============================================================
+     APP SHELL
+     ============================================================ -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">🌿</div>
+        <div class="sidebar-logo-text">
+          <h2>FreshNest</h2>
+          <span>Post-Harvest System</span>
         </div>
       </div>
+    </div>
+    <div class="sidebar-user" id="sidebar-user-info"></div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">⬡ Sign Out</button>
+    </div>
+  </aside>
 
-          <!-- ── PRODUCE ── -->
-      <div class="section" id="section-produce">
-        <div class="section-header">
-          <div>
-            <h2>My Produce</h2>
-            <p>Manage your produce listings visible to dealers</p>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-produce')">+ Add Produce</button>
-        </div>
-        <div class="card">
-          <div id="produce-table-wrap">
-            <div class="empty">
-              <div class="empty-icon">🌾</div>
-              <h4>No produce listed yet</h4>
-              <p>Click "Add Produce" to list your first crop</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── TRANSPORT ── -->
-      <div class="section" id="section-transport">
-        <div class="section-header">
-          <div>
-            <h2>Transport Requests</h2>
-            <p>Request transporters to pick up your produce</p>
-          </div>
-          <button class="btn btn-amber btn-sm" onclick="openModal('modal-add-transport')">+ New Request</button>
-        </div>
-        <div class="card">
-          <div id="transport-table-wrap">
-            <div class="empty">
-              <div class="empty-icon">🚛</div>
-              <h4>No transport requests yet</h4>
-              <p>Click "New Request" to arrange pickup</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /main-content -->
-  </div><!-- /dashboard-body -->
-</div>
-<!-- ══════════════════════════════════════════
-     MODAL: ADD PRODUCE
-══════════════════════════════════════════ -->
-<div class="modal-overlay" id="modal-add-produce">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>🌾 Add New Produce</h3>
-      <button class="modal-close" onclick="closeModal('modal-add-produce')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="alert alert-error" id="produce-alert"></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Produce Name *</label>
-          <input type="text" id="p-name" placeholder="e.g. Tomato, Rice, Mango">
-        </div>
-        <div class="form-group">
-          <label>Category *</label>
-          <select id="p-category">
-            <option value="Vegetable">🥦 Vegetable</option>
-            <option value="Fruit">🍎 Fruit</option>
-            <option value="Other">🌿 Other</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Quantity *</label>
-          <input type="number" id="p-quantity" placeholder="e.g. 500" min="1">
-        </div>
-        <div class="form-group">
-          <label>Unit *</label>
-          <select id="p-unit">
-            <option value="kg">kg</option>
-            <option value="ton">ton</option>
-            <option value="pieces">pieces</option>
-            <option value="crate">crate</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Harvest Date *</label>
-          <input type="date" id="p-date">
-        </div>
-        <div class="form-group">
-          <label>Location *</label>
-          <input type="text" id="p-location" placeholder="e.g. Bogura, Rajshahi">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Storage Temp</label>
-          <input type="text" id="p-temp" placeholder="e.g. 10-15°C">
-        </div>
-        <div class="form-group">
-          <label>Fresh Days</label>
-          <input type="number" id="p-freshdays" placeholder="e.g. 14" min="0">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Storage Tips</label>
-        <textarea id="p-tips" placeholder="Any special storage instructions..."></textarea>
+  <!-- MAIN -->
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="topbar-date"></span>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-add-produce')">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="addProduce()">Add Produce</button>
-    </div>
+    <div class="page-body" id="page-body"></div>
   </div>
 </div>
+<!-- ============================================================
+     MODALS CONTAINER
+     ============================================================ -->
+<div id="modal-container"></div>
 
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
 <script src="script.js"></script>
 </body>
 </html>
