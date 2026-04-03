@@ -480,3 +480,9 @@ function updateStorageTip() {
     document.getElementById('storage-tip-box').innerHTML = `💡 <strong>${name}:</strong> Store at ${info.temp} · ${info.humidity} humidity · Fresh for <strong>${info.freshDays} days</strong>.<br><em>${info.tips}</em>`;
   }
 }
+async function submitAddProduct() {
+  const name=document.getElementById('ap-name').value;
+  const qty=document.getElementById('ap-qty').value;
+  const unit=document.getElementById('ap-unit').value;
+  const date=document.getElementById('ap-date').value;
+  const loc=document.getElementById('ap-loc').value;
