@@ -120,6 +120,27 @@ CREATE TABLE IF NOT EXISTS delivery_failures (
   INDEX idx_transporter (transporter_id)
 ) ENGINE=InnoDB;
 
+-- ============================================================
+--  SEED DATA
+-- ============================================================
+
+-- ── Produce Conditions Reference ──────────────────────────
+INSERT INTO produce_conditions (produce_name, category, emoji, storage_temp, storage_humidity, fresh_days, harvest_months, storage_tips) VALUES
+-- Fruits
+('Mango',        'Fruit', '🥭', '13–15°C', '85–90%', 14, 'May–July',       'Store away from ethylene-sensitive produce. Ripen at room temperature.'),
+('Banana',       'Fruit', '🍌', '13–15°C', '85–95%', 7,  'Year-round',     'Never refrigerate unripe bananas. Keep dry and ventilated.'),
+('Litchi',       'Fruit', '🍒', '2–5°C',   '90–95%', 5,  'May–June',       'Refrigerate immediately after harvest to retain red color.'),
+('Pineapple',    'Fruit', '🍍', '7–10°C',  '85–90%', 10, 'Apr–Aug',        'Store upright. Do not stack. Avoid ethylene exposure.'),
+('Guava',        'Fruit', '🍈', '8–10°C',  '85–90%', 7,  'Year-round',     'Wrap individually in tissue paper for longer shelf life.'),
+('Papaya',       'Fruit', '🍈', '10–13°C', '85–90%', 7,  'Year-round',     'Harvest at 25% yellow for long-distance transport.'),
+('Jackfruit',    'Fruit', '🟡', '11–14°C', '85–90%', 5,  'Jun–Aug',        'Cut jackfruit must be refrigerated and consumed within 3 days.'),
+('Watermelon',   'Fruit', '🍉', '10–15°C', '85–90%', 14, 'Apr–Sep',        'Store away from other fruits. Do not refrigerate uncut.'),
+('Coconut',      'Fruit', '🥥', '0–2°C',   '80–85%', 30, 'Year-round',     'Remove husks for longer cold storage. Avoid moisture.'),
+('Orange',       'Fruit', '🍊', '3–9°C',   '85–90%', 21, 'Nov–Feb',        'Check regularly for mold. Do not wash before storage.'),
+('Strawberry',   'Fruit', '🍓', '0–2°C',   '90–95%', 5,  'Dec–Feb',        'Handle with extreme care. Never wash before storage.'),
+('Grape',        'Fruit', '🍇', '0–2°C',   '90–95%', 21, 'Dec–Mar',        'Store in original clusters. Avoid temperature fluctuation.'),
+
+
 
 -- SAMPLE DATA (password: demo1234)
 INSERT INTO users (name, email, password_hash, role, location) VALUES
