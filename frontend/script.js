@@ -78,4 +78,9 @@ function normProduce(p) {
     tips: p.storage_tips||db.tips||'', listed: (p.listed_at||'').slice(0,10),
     emoji: p.emoji||db.emoji||'🌿', category: p.category||db.cat||'Other' };
 }
+function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.farmer_name,
+    product: t.produce_name, productId: t.product_id, pickup: t.pickup_location,
+    date: t.pickup_date, assignedTo: t.assigned_to, transporterName: t.transporter_name,
+    created: (t.created_at||'').slice(0,10) }; }
+    
 
