@@ -130,5 +130,11 @@ function badge(status) {
 }
 
 function produceEmoji(name) { return PRODUCE_DB[name]?.emoji || '🌿'; }
-
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='login'?0:1)));
+  document.getElementById('login-form').style.display    = tab==='login'?'block':'none';
+  document.getElementById('register-form').style.display = tab==='register'?'block':'none';
+  document.getElementById('auth-alert').innerHTML='';
+}
 
