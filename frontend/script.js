@@ -1005,3 +1005,186 @@ function renderMyDeals() {
     </table></div></div>`}
   `;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  ADMIN PAGES
+// ──────────────────────────────────────────────────────────────────────────────
+function renderAdminDashboard() {
+  const total = { users:state.users.length, products:state.products.length, trans:state.trans.length, deals:state.deals.length, failures:state.failures.length };
+  const byRole = r => state.users.filter(u=>u.role===r).length;
+  document.getElementById('page-body').innerHTML = `
+    <div class="hero-banner" style="background:linear-gradient(135deg,#4A235A,#6C3483,#8E44AD)">
+      <div class="inner"><h2>Admin Overview ⚙️</h2><p>System-wide monitoring across all users, produce listings, logistics, and deals.</p></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card green" data-icon="👥"><div class="stat-value">${total.users}</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card gold" data-icon="🌿"><div class="stat-value">${total.products}</div><div class="stat-label">Produce Listed</div></div>
+      <div class="stat-card forest" data-icon="🚛"><div class="stat-value">${total.trans}</div><div class="stat-label">Transport Requests</div></div>
+      <div class="stat-card sage" data-icon="🤝"><div class="stat-value">${total.deals}</div><div class="stat-label">Deals</div></div>
+    </div>
+    <div class="info-grid">
+      <div class="card">
+        <div class="card-header"><div class="card-title">👥 Users by Role</div></div>
+        <div class="card-body">
+          ${[['🌾 Farmers','farmer','green'],['🚛 Transport','transport','gold'],['🏪 Dealers','dealer','blue'],['⚙️ Admins','admin','gray']].map(([label,role,color])=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ivory)">
+              <span style="font-weight:600">${label}</span>
+              <span class="badge badge-${color}">${byRole(role)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📊 Activity Summary</div></div>
+        <div class="card-body">
+          ${[['Open Transport Requests', state.trans.filter(t=>t.status==='Open').length,'blue'],
+             ['Active Deliveries', state.trans.filter(t=>t.status==='Accepted').length,'green'],
+             ['Pending Deals', state.deals.filter(d=>d.status==='Pending').length,'gold'],
+             ['Delivery Failures', state.failures.length,'red']].map(([label,val,color])=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ivory)">
+              <span style="font-weight:600">${label}</span>
+              <span class="badge badge-${color}">${val}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+    ${state.failures.length>0?`<div class="alert alert-warning">⚠️ ${state.failures.length} delivery failure(s) reported. Review in the Failures section.</div>`:''}
+  `;
+}
+
+async function renderAdminUsers() {
+  
+  try {
+    if (state.token && state.token !== 'demo-token') {
+      const users = await apiFetch('/users');
+      state.users = users.map(normUser);
+    }
+  } catch (err) {
+    console.warn('Could not refresh users list:', err);
+   
+  }
+
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>All Users (${state.users.length})</h2></div>
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Location/Vehicle</th><th>Joined</th></tr></thead>
+      <tbody>${state.users.map(u=>`<tr>
+        <td><strong>${u.name}</strong></td><td>${u.email}</td>
+        <td><span class="badge ${{admin:'badge-gray',farmer:'badge-green',transport:'badge-gold',dealer:'badge-blue'}[u.role]||'badge-gray'}">${{admin:'⚙️',farmer:'🌾',transport:'🚛',dealer:'🏪'}[u.role]||''} ${u.role}</span></td>
+        <td>${u.location||u.vehicle||'—'}</td><td>${u.joined}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  `;
+}
+
+function renderAdminProducts() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>All Produce (${state.products.length})</h2></div>
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Category</th><th>Farmer</th><th>Qty</th><th>Location</th><th>Storage Temp</th><th>Fresh Days</th><th>Status</th></tr></thead>
+      <tbody>${state.products.map(p=>`<tr>
+        <td>${p.emoji||'🌿'} <strong>${p.name}</strong></td>
+        <td><span class="badge ${p.category==='Fruit'?'badge-gold':'badge-green'}">${p.category}</span></td>
+        <td>${p.farmerName}</td><td>${p.quantity} ${p.unit}</td>
+        <td>${p.location}</td><td>${p.temp}</td><td>${p.freshDays}d</td>
+        <td>${badge(p.status)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  `;
+}
+
+function renderAdminTransport() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>All Transport Requests (${state.trans.length})</h2></div>
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Farmer</th><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Transporter</th><th>Status</th></tr></thead>
+      <tbody>${state.trans.map(t=>`<tr>
+        <td>${t.farmerName}</td>
+        <td>${produceEmoji(t.product)} ${t.product}</td>
+        <td>${t.pickup} → ${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td>${t.transporterName||'<span style="color:var(--mist)">Unassigned</span>'}</td>
+        <td>${badge(t.status)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  `;
+}
+
+function renderAdminDeals() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>All Deals (${state.deals.length})</h2></div>
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Farmer</th><th>Dealer</th><th>Qty</th><th>Price</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>${state.deals.map(d=>`<tr>
+        <td>${produceEmoji(d.product)} ${d.product}</td>
+        <td>${d.farmerName}</td><td>${d.dealerName}</td>
+        <td>${d.quantity}</td><td>৳${d.price}/kg</td>
+        <td>${d.created}</td><td>${badge(d.status)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  `;
+}
+
+function renderAdminFailures() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Delivery Failures (${state.failures.length})</h2></div>
+    ${state.failures.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">✅</div><p>No delivery failures reported.</p></div></div>`:''}
+    ${state.failures.map(f=>`
+      <div class="failure-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700;color:var(--amber);font-size:1.05rem">${produceEmoji(f.product)} ${f.product}</div>
+            <div style="font-size:.85rem;color:var(--slate);margin-top:3px">🚛 ${f.transporterName} · Route: ${f.route}</div>
+            <div style="font-size:.85rem;margin-top:5px"><strong>Reason:</strong> ${f.reason} · <strong>Date:</strong> ${f.reported}</div>
+            ${f.notes?`<div style="font-size:.82rem;color:var(--slate);margin-top:3px;font-style:italic">"${f.notes}"</div>`:''}
+          </div>
+          <span class="badge badge-gold">Failure</span>
+        </div>
+        <div class="alternatives-box">
+          <h4>🔄 Alternatives Suggested</h4>
+          ${f.alternatives.map(a=>`<div class="alt-item">${a}</div>`).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+// Init date
+document.getElementById('topbar-date') && (document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-BD',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
+
+(function restoreSession(){
+  try {
+    const token = localStorage.getItem('hl_token');
+    const userRaw = localStorage.getItem('hl_user');
+    if (!token || !userRaw) return;
+    const user = JSON.parse(userRaw);
+
+    state.token = token;
+    state.user = user;
+
+    try {
+      const emailEl = document.getElementById('login-email');
+      if (emailEl && user.email) emailEl.value = user.email;
+    } catch(_){}
+
+    if (token && token !== 'demo-token') {
+      apiFetch('/users/me').then(me=>{
+        
+        state.user = normUser({ ...me, vehicle_type: me.vehicle_type });
+      }).catch(err=>{
+        console.warn('Session validation failed:', err);
+        try { localStorage.removeItem('hl_token'); localStorage.removeItem('hl_user'); } catch(_){}
+        state.token = null; state.user = null;
+      });
+    }
+
+    
+  } catch(e) {
+    console.warn('restoreSession error', e);
+  }
+})();
