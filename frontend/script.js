@@ -1,258 +1,195 @@
-// ── CONFIG ────────────────────────────────────────────────
-const API = 'http://localhost:5000/api';
+// ─── DATA STORE ───────────────────────────────────────────────────────────────
+const PRODUCE_DB = {
+  // FRUITS
+  'Mango':       { cat:'Fruit', emoji:'🥭', temp:'13–15°C', humidity:'85–90%', freshDays:14, tips:'Store away from ethylene-sensitive produce. Ripen at room temperature.', harvestMonths:'May–July' },
+  'Banana':      { cat:'Fruit', emoji:'🍌', temp:'13–15°C', humidity:'85–95%', freshDays:7,  tips:'Never refrigerate unripe bananas. Keep dry and ventilated.', harvestMonths:'Year-round' },
+  'Litchi':      { cat:'Fruit', emoji:'🍒', temp:'2–5°C',   humidity:'90–95%', freshDays:5,  tips:'Refrigerate immediately after harvest to retain red color.', harvestMonths:'May–June' },
+  'Pineapple':   { cat:'Fruit', emoji:'🍍', temp:'7–10°C',  humidity:'85–90%', freshDays:10, tips:'Store upright. Do not stack. Avoid ethylene exposure.', harvestMonths:'Apr–Aug' },
+  'Guava':       { cat:'Fruit', emoji:'🍈', temp:'8–10°C',  humidity:'85–90%', freshDays:7,  tips:'Wrap individually in tissue paper for longer shelf life.', harvestMonths:'Year-round' },
+  'Papaya':      { cat:'Fruit', emoji:'🍈', temp:'10–13°C', humidity:'85–90%', freshDays:7,  tips:'Harvest at 25% yellow for long-distance transport.', harvestMonths:'Year-round' },
+  'Jackfruit':   { cat:'Fruit', emoji:'🟡', temp:'11–14°C', humidity:'85–90%', freshDays:5,  tips:'Cut jackfruit must be refrigerated and consumed within 3 days.', harvestMonths:'Jun–Aug' },
+  'Watermelon':  { cat:'Fruit', emoji:'🍉', temp:'10–15°C', humidity:'85–90%', freshDays:14, tips:'Store away from other fruits. Do not refrigerate uncut.', harvestMonths:'Apr–Sep' },
+  'Coconut':     { cat:'Fruit', emoji:'🥥', temp:'0–2°C',   humidity:'80–85%', freshDays:30, tips:'Remove husks for longer cold storage. Avoid moisture.', harvestMonths:'Year-round' },
+  'Orange':      { cat:'Fruit', emoji:'🍊', temp:'3–9°C',   humidity:'85–90%', freshDays:21, tips:'Check regularly for mold. Do not wash before storage.', harvestMonths:'Nov–Feb' },
+  'Strawberry':  { cat:'Fruit', emoji:'🍓', temp:'0–2°C',   humidity:'90–95%', freshDays:5,  tips:'Handle with extreme care. Never wash before storage.', harvestMonths:'Dec–Feb' },
+  'Grape':       { cat:'Fruit', emoji:'🍇', temp:'0–2°C',   humidity:'90–95%', freshDays:21, tips:'Store in original clusters. Avoid temperature fluctuation.', harvestMonths:'Dec–Mar' },
+   // VEGETABLES
+  'Tomato':      { cat:'Vegetable', emoji:'🍅', temp:'10–13°C', humidity:'85–90%', freshDays:10, tips:'Store stem-up. Never refrigerate fully ripe tomatoes.', harvestMonths:'Oct–Mar' },
+  'Potato':      { cat:'Vegetable', emoji:'🥔', temp:'4–7°C',  humidity:'85–90%', freshDays:60, tips:'Store in dark, dry, cool place. Avoid light to prevent greening.', harvestMonths:'Jan–Mar' },
+  'Onion':       { cat:'Vegetable', emoji:'🧅', temp:'0–4°C',  humidity:'65–70%', freshDays:90, tips:'Store dry with good airflow. Low humidity is critical.', harvestMonths:'Jan–Apr' },
+  'Eggplant':    { cat:'Vegetable', emoji:'🍆', temp:'10–12°C', humidity:'90–95%', freshDays:7, tips:'Very chilling-sensitive. Keep away from ethylene.', harvestMonths:'Year-round' },
+  'Cucumber':    { cat:'Vegetable', emoji:'🥒', temp:'10–13°C', humidity:'90–95%', freshDays:7, tips:'Wrap individually. Ethylene sensitive; isolate from ripening fruits.', harvestMonths:'Year-round' },
+  'Cauliflower': { cat:'Vegetable', emoji:'🥦', temp:'0–1°C',  humidity:'90–95%', freshDays:14, tips:'Store wrapped to prevent discoloration. Keep very cold.', harvestMonths:'Nov–Feb' },
+  'Cabbage':     { cat:'Vegetable', emoji:'🥬', temp:'0–1°C',  humidity:'90–95%', freshDays:21, tips:'Remove outer damaged leaves before storage.', harvestMonths:'Nov–Feb' },
+  'Carrot':      { cat:'Vegetable', emoji:'🥕', temp:'0–1°C',  humidity:'90–95%', freshDays:28, tips:'Remove tops before storage to retain moisture.', harvestMonths:'Nov–Feb' },
+  'Spinach':     { cat:'Vegetable', emoji:'🥗', temp:'0–2°C',  humidity:'95–100%',freshDays:5,  tips:'Store in perforated plastic bags. Very perishable.', harvestMonths:'Nov–Feb' },
+  'Green Bean':  { cat:'Vegetable', emoji:'🫘', temp:'4–8°C',  humidity:'90–95%', freshDays:7,  tips:'Blanch before freezing for longer storage.', harvestMonths:'Year-round' },
+  'Bitter Gourd':{ cat:'Vegetable', emoji:'🫑', temp:'10–12°C', humidity:'85–90%', freshDays:7, tips:'Store in cool and shaded area. Avoid direct sunlight.', harvestMonths:'Year-round' },
+  'Pumpkin':     { cat:'Vegetable', emoji:'🎃', temp:'10–13°C', humidity:'60–70%', freshDays:60, tips:'Keep stem intact. Store in dry area with good ventilation.', harvestMonths:'Year-round' },
+};
+const SEED_USERS = [
+  { id:'admin1', name:'Admin User',     email:'admin@harvest.bd', password:'admin123', role:'admin',     joined:'2026-01-01' },
+  { id:'farm1',  name:'Rahim Uddin',    email:'rahim@farm.bd',    password:'pass123',  role:'farmer',    location:'Rajshahi', joined:'2026-01-05' },
+  { id:'farm2',  name:'Sufia Begum',    email:'sufia@farm.bd',    password:'pass123',  role:'farmer',    location:'Mymensingh', joined:'2026-01-08' },
+   { id:'trans1', name:'Karim Transport',email:'karim@trans.bd',   password:'pass123',  role:'transport', vehicle:'Refrigerated Truck', joined:'2026-01-10' },
+  { id:'deal1',  name:'Dhaka Fresh Ltd',email:'dhaka@fresh.bd',   password:'pass123',  role:'dealer',    location:'Dhaka', joined:'2026-01-12' },
+  { id:'deal2',  name:'Chittagong Grocers',email:'chittagong@fresh.bd',   password:'pass123',  role:'dealer',    location:'Chittagong', joined:'2026-02-18' },
+];
+const SEED_PRODUCTS = [
+  { id:'p1', farmerId:'farm1', farmerName:'Rahim Uddin', name:'Mango', category:'Fruit', quantity:500, unit:'kg', harvestDate:'2026-01-20', location:'Rajshahi', status:'Available', listed:'2026-01-21', ...PRODUCE_DB['Mango'] },
+  { id:'p2', farmerId:'farm2', farmerName:'Sufia Begum', name:'Tomato', category:'Vegetable', quantity:300, unit:'kg', harvestDate:'2026-01-22', location:'Mymensingh', status:'Available', listed:'2026-01-22', ...PRODUCE_DB['Tomato'] },
+  { id:'p3', farmerId:'farm1', farmerName:'Rahim Uddin', name:'Potato', category:'Vegetable', quantity:1000, unit:'kg', harvestDate:'2026-01-15', location:'Rajshahi', status:'Available', listed:'2026-01-16', ...PRODUCE_DB['Potato'] },
+];
+const SEED_TRANS = [
+  { id:'t1', farmerId:'farm1', farmerName:'Rahim Uddin', product:'Mango', productId:'p1', pickup:'Rajshahi', destination:'Dhaka', date:'2026-02-01', quantity:'500 kg', notes:'Refrigerated vehicle required', status:'Open', created:'2026-01-25' },
+];
 
-// ── STATE ─────────────────────────────────────────────────
-let token = '';
-let user  = null;
-let produceList   = [];
-let transportList = [];
+const SEED_DEALS = [
+  { id:'d1', dealerId:'deal1', dealerName:'Dhaka Fresh Ltd', farmerId:'farm1', farmerName:'Rahim Uddin', product:'Mango', productId:'p1', quantity:'200 kg', price:'80', status:'Pending', created:'2026-01-26' },
+];
+// ─── API CONFIG ───────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:5000/api';
 
-// ── HELPERS ───────────────────────────────────────────────
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
+function today() { return new Date().toISOString().slice(0,10); }
+async function apiFetch(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    const text = await res.text();
+    data = { error: text };
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data.data;
 }
-
-function showSection(name) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('section-' + name).classList.add('active');
-  document.getElementById('nav-' + name).classList.add('active');
-  if (name === 'produce')   loadProduce();
-  if (name === 'transport') loadTransport();
+/ ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
+function normUser(u)    { return { ...u, vehicle: u.vehicle_type||'', joined: (u.created_at||'').slice(0,10) }; }
+function normProduce(p) {
+  const db = PRODUCE_DB[p.name] || {};
+  return { ...p, farmerId: p.farmer_id, farmerName: p.farmer_name,
+    harvestDate: p.harvest_date, temp: p.storage_temp||db.temp||'',
+    humidity: p.storage_humidity||db.humidity||'', freshDays: p.fresh_days||db.freshDays||7,
+    tips: p.storage_tips||db.tips||'', listed: (p.listed_at||'').slice(0,10),
+    emoji: p.emoji||db.emoji||'🌿', category: p.category||db.cat||'Other' };
 }
+function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.farmer_name,
+    product: t.produce_name, productId: t.product_id, pickup: t.pickup_location,
+    date: t.pickup_date, assignedTo: t.assigned_to, transporterName: t.transporter_name,
+    created: (t.created_at||'').slice(0,10) }; }
+    function normDeal(d)    { return { ...d, dealerId: d.dealer_id, dealerName: d.dealer_name,
+    farmerId: d.farmer_id, farmerName: d.farmer_name, product: d.produce_name,
+    productId: d.product_id, quantity: d.quantity_requested, price: d.offered_price_per_kg,
+    msg: d.message, created: (d.created_at||'').slice(0,10) }; }
+function normFail(f)    { return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
+    requestId: f.transport_request_id, product: f.produce_name,
+    alternatives: typeof f.alternatives === 'string' ? JSON.parse(f.alternatives||'[]') : (f.alternatives||[]),
+    reported: (f.reported_at||'').slice(0,10) }; }
+    // ─── STATE ────────────────────────────────────────────────────────────────────
+let state = { user:null, token:null, users:[], products:[], trans:[], deals:[], failures:[], activeNav:null };
 
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-function showAlert(id, msg, type='error') {
+async function loadAll() {
+  try {
+    const [products, trans, deals, failures] = await Promise.all([
+      apiFetch('/produce').then(r => r.map(normProduce)),
+      apiFetch('/transport').then(r => r.map(normTrans)),
+      apiFetch('/deals').then(r => r.map(normDeal)),
+      apiFetch('/failures').then(r => r.map(normFail)),
+    ]);
+     state.products = products;
+    state.trans    = trans;
+    state.deals    = deals;
+    state.failures = failures;
+    if (state.user.role === 'admin') {
+      state.users = await apiFetch('/users').then(r => r.map(normUser));
+    }
+  } catch(e) {
+    console.error('loadAll error:', e);
+  }
+}
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function showAlert(id, msg, type='info') {
   const el = document.getElementById(id);
-  el.textContent = msg;
-  el.className = `alert alert-${type} show`;
-}
-function hideAlert(id) {
-  document.getElementById(id).className = 'alert';
+  if(el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(()=>{ if(el) el.innerHTML=''; }, 4000);
 }
 
-async function apiCall(method, path, body) {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(API + path, opts);
-  return r.json();
-}// ── AUTH ──────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">${html}</div>`;
+}
+function closeModal() { document.getElementById('modal-container').innerHTML=''; }
+
+function badge(status) {
+  const map = { 'Open':'badge-blue','Available':'badge-green','Accepted':'badge-sage','Completed':'badge-green','Cancelled':'badge-gray','Pending':'badge-gold','Declined':'badge-red','Failed':'badge-red' };
+  return `<span class="badge ${map[status]||'badge-gray'}">${status}</span>`;
+}
+
+function produceEmoji(name) { return PRODUCE_DB[name]?.emoji || '🌿'; }
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='login'?0:1)));
+  document.getElementById('login-form').style.display    = tab==='login'?'block':'none';
+  document.getElementById('register-form').style.display = tab==='register'?'block':'none';
+  document.getElementById('auth-alert').innerHTML='';
+}
+function loadDemoData() {
+  state.users    = SEED_USERS.map(normUser);
+  state.products = SEED_PRODUCTS.map(normProduce);
+  state.trans     = SEED_TRANS.map(normTrans);
+  state.deals     = SEED_DEALS.map(normDeal);
+  state.failures  = [];
+}
+
+function quickLogin(email, pass) {
+  document.getElementById('login-email').value = email;
+  document.getElementById('login-pass').value = pass;
+  const demoUser = SEED_USERS.find(u => u.email === email && u.password === pass);
+  if (demoUser) {
+    state.user  = { ...demoUser, vehicle: demoUser.vehicle || '' };
+    state.token = 'demo-token';
+    localStorage.setItem('hl_token', state.token);
+    localStorage.setItem('hl_user', JSON.stringify(state.user));
+    loadDemoData();
+    initApp();
+    return;
+  }
+ doLogin();
+}
 async function doLogin() {
-  hideAlert('login-alert');
   const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  if (!email || !pass) return showAlert('login-alert', 'Please enter email and password.');
-
-  const res = await apiCall('POST', '/auth/login', { email, password: pass });
-  if (!res.success) return showAlert('login-alert', res.error || 'Login failed.');
-
-  token = res.data.token;
-  user  = res.data.user;
-  initDashboard();
-  showPage('dashboard');
-}
-
-async function doRegister() {
-  hideAlert('reg-alert');
-  hideAlert('reg-success');
-  const name     = document.getElementById('reg-name').value.trim();
-  const email    = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const role     = document.getElementById('reg-role').value;
-  const location = document.getElementById('reg-location').value.trim();
-
-  if (!name || !email || !password) return showAlert('reg-alert', 'Name, email and password are required.');
-  if (password.length < 6)          return showAlert('reg-alert', 'Password must be at least 6 characters.');
-
-  const res = await apiCall('POST', '/auth/register', { name, email, password, role, location });
-  if (!res.success) return showAlert('reg-alert', res.error || 'Registration failed.');
-
-  showAlert('reg-success', '✅ Account created! You can now login.', 'success');
-  setTimeout(() => showPage('login'), 1500);
-}
-
-function doLogout() {
-  token = '';
-  user  = null;
-  produceList = [];
-  transportList = [];
-  showPage('login');
-}
-// ── DASHBOARD INIT ────────────────────────────────────────
-function initDashboard() {
-  document.getElementById('welcome-msg').textContent = `Hello, ${user.name}! 👋`;
-  document.getElementById('user-chip').textContent   = `👤 ${user.name}`;
-  document.getElementById('role-tag').textContent    = user.role === 'farmer' ? '🌾 Farmer' : user.role;
-  showSection('home');
-  loadStats();
-}
-
-async function loadStats() {
-  const [pr, tr] = await Promise.all([
-    apiCall('GET', '/produce'),
-    apiCall('GET', '/transport')
-  ]);
-  produceList   = pr.success   ? pr.data   : [];
-  transportList = tr.success   ? tr.data   : [];
-  document.getElementById('stat-produce').textContent   = produceList.length;
-  document.getElementById('stat-transport').textContent = transportList.length;
-  document.getElementById('stat-active').textContent    = produceList.filter(p => p.status === 'Available').length;
-}
-// ── PRODUCE ───────────────────────────────────────────────
-async function loadProduce() {
-  const res = await apiCall('GET', '/produce');
-  produceList = res.success ? res.data : [];
-  renderProduceTable();
-}
-function renderProduceTable() {
-  const wrap = document.getElementById('produce-table-wrap');
-  if (!produceList.length) {
-    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🌾</div><h4>No produce listed yet</h4><p>Click "Add Produce" to list your first crop</p></div>`;
-    return;
+  const pass  = document.getElementById('login-pass').value;
+  if (!email || !pass) return showAlert('auth-alert','Email and password required.','danger');
+  try {
+    showAlert('auth-alert','Signing in...','info');
+    const data = await apiFetch('/auth/login', { method:'POST', body: JSON.stringify({ email, password: pass }) });
+    state.token = data.token;
+    state.user  = { ...data.user, vehicle: data.user.vehicle||'' };
+    // persist session
+    try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
+    await loadAll();
+    initApp();
+  } catch(e) {
+    if (e.message && e.message.toLowerCase().includes('failed to fetch')) {
+      const user = SEED_USERS.find(u => u.email === email && u.password === pass);
+      if (user) {
+        state.user  = { ...user, vehicle: user.vehicle || '' };
+        state.token = 'demo-token';
+        try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
+        loadDemoData();
+        initApp();
+        return;
+      }
+    }
+    showAlert('auth-alert', e.message || 'Invalid email or password.', 'danger');
   }
-  wrap.innerHTML = `
-    <table>
-      <thead><tr>
-        <th>Produce</th><th>Category</th><th>Quantity</th>
-        <th>Harvest Date</th><th>Location</th><th>Status</th><th>Action</th>
-      </tr></thead>
-      <tbody>
-        ${produceList.map(p => `
-          <tr>
-            <td><strong>${p.name}</strong></td>
-            <td>${p.category}</td>
-            <td>${p.quantity} ${p.unit}</td>
-            <td>${p.harvest_date ? p.harvest_date.slice(0,10) : '—'}</td>
-            <td>${p.location}</td>
-            <td>${badgeProduce(p.status)}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="deleteProduce(${p.id})">Remove</button></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
 }
-
-function badgeProduce(s) {
-  const map = { Available:'badge-green', Sold:'badge-gray', Reserved:'badge-amber', Expired:'badge-red' };
-  return `<span class="badge ${map[s]||'badge-gray'}">${s}</span>`;
+function toggleRoleFields() {
+  const r = document.getElementById('reg-role').value;
+  document.getElementById('field-location').style.display = r!=='transport'?'block':'none';
+  document.getElementById('field-vehicle').style.display  = r==='transport'?'block':'none';
 }
-
-async function addProduce() {
-  hideAlert('produce-alert');
-  const name       = document.getElementById('p-name').value.trim();
-  const category   = document.getElementById('p-category').value;
-  const quantity   = document.getElementById('p-quantity').value;
-  const unit       = document.getElementById('p-unit').value;
-  const harvestDate = document.getElementById('p-date').value;
-  const location   = document.getElementById('p-location').value.trim();
-  const storageTmp = document.getElementById('p-temp').value.trim();
-  const freshDays  = document.getElementById('p-freshdays').value || 0;
-  const tips       = document.getElementById('p-tips').value.trim();
-
-  if (!name || !quantity || !harvestDate || !location)
-    return showAlert('produce-alert', 'Please fill in all required fields (*).');
-
-  const res = await apiCall('POST', '/produce', {
-    name, category, quantity: +quantity, unit, harvest_date: harvestDate,
-    location, storage_temp: storageTmp, fresh_days: +freshDays, storage_tips: tips
-  });
-
-  if (!res.success) return showAlert('produce-alert', res.error || 'Failed to add produce.');
-
-  closeModal('modal-add-produce');
-  // Reset fields
-  ['p-name','p-quantity','p-date','p-location','p-temp','p-freshdays','p-tips'].forEach(id => document.getElementById(id).value = '');
-  loadProduce();
-  loadStats();
-}
-
-async function deleteProduce(id) {
-  if (!confirm('Remove this produce listing?')) return;
-  const res = await apiCall('DELETE', '/produce/' + id);
-  if (res.success) { loadProduce(); loadStats(); }
-  else alert(res.error || 'Failed to remove.');
-}
-// ── TRANSPORT ─────────────────────────────────────────────
-async function loadTransport() {
-  const res = await apiCall('GET', '/transport');
-  transportList = res.success ? res.data : [];
-  renderTransportTable();
-}
-
-function renderTransportTable() {
-  const wrap = document.getElementById('transport-table-wrap');
-  if (!transportList.length) {
-    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🚛</div><h4>No transport requests yet</h4><p>Click "New Request" to arrange pickup</p></div>`;
-    return;
-  }
-  wrap.innerHTML = `
-    <table>
-      <thead><tr>
-        <th>Produce</th><th>Pickup</th><th>Destination</th>
-        <th>Quantity</th><th>Date</th><th>Status</th><th>Action</th>
-      </tr></thead>
-      <tbody>
-        ${transportList.map(t => `
-          <tr>
-            <td><strong>${t.produce_name}</strong></td>
-            <td>${t.pickup_location || '—'}</td>
-            <td>${t.destination}</td>
-            <td>${t.quantity || '—'}</td>
-            <td>${t.pickup_date ? t.pickup_date.slice(0,10) : '—'}</td>
-            <td>${badgeTransport(t.status)}</td>
-            <td>${t.status==='Open' ? `<button class="btn btn-danger btn-sm" onclick="cancelTransport(${t.id})">Cancel</button>` : '—'}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
-}
-
-function badgeTransport(s) {
-  const map = { Open:'badge-blue', Accepted:'badge-amber', Completed:'badge-green', Cancelled:'badge-gray', Failed:'badge-red' };
-  return `<span class="badge ${map[s]||'badge-gray'}">${s}</span>`;
-}
-
-async function addTransport() {
-  hideAlert('transport-alert');
-  const produce  = document.getElementById('t-produce').value.trim();
-  const dest     = document.getElementById('t-dest').value.trim();
-  const pickup   = document.getElementById('t-pickup').value.trim();
-  const qty      = document.getElementById('t-quantity').value.trim();
-  const date     = document.getElementById('t-date').value;
-  const notes    = document.getElementById('t-notes').value.trim();
-
-  if (!produce || !dest) return showAlert('transport-alert', 'Produce name and destination are required (*).');
-
-  const res = await apiCall('POST', '/transport', {
-    produce_name: produce, destination: dest, pickup_location: pickup,
-    quantity: qty, pickup_date: date || null, notes
-  });
-
-  if (!res.success) return showAlert('transport-alert', res.error || 'Failed to submit request.');
-
-  closeModal('modal-add-transport');
-  ['t-produce','t-dest','t-pickup','t-quantity','t-date','t-notes'].forEach(id => document.getElementById(id).value = '');
-  loadTransport();
-  loadStats();
-}
-
-async function cancelTransport(id) {
-  if (!confirm('Cancel this transport request?')) return;
-  const res = await apiCall('PATCH', '/transport/' + id, { status: 'Cancelled' });
-  if (res.success) loadTransport();
-  else alert(res.error || 'Failed to cancel.');
-}
-
-// ── CLOSE MODALS ON OVERLAY CLICK ─────────────────────────
-document.querySelectorAll('.modal-overlay').forEach(o => {
-  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
-});
-
-// ── ENTER KEY LOGIN ───────────────────────────────────────
-document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });

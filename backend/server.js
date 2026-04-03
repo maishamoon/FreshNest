@@ -124,6 +124,24 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     if (existing.length) return error(res, 'Email already registered.');
 
     // Hash + insert
+// ═════════════════════════════════════════════════════════
+//  AUTH ROUTES
+// ═════════════════════════════════════════════════════════
+
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, role, location } = req.body;
+
+    if (!name || !email || !password || !role)
+      return res.status(400).json({ success: false, error: 'Name, email, password, and role are required.' });
+
+    // Check if user already exists
+    const existingUsers = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+    if (existingUsers.length)
+      return res.status(400).json({ success: false, error: 'Email already registered.' });
+
+    // Hash password — never store plain text
     const hash = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
       'INSERT INTO users (name, email, password_hash, role, location, vehicle_type) VALUES (?, ?, ?, ?, ?, ?)',
@@ -137,6 +155,10 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     } else {
       success(res, { id: result.insertId, name, email, role, location, vehicle, created_at: new Date().toISOString() }, 201);
     }
+    res.status(201).json({
+      success: true,
+      data: { id: result.insertId, name, email, role, location }
+    });
   } catch (err) {
     console.error(err);
     error(res, 'Registration failed.', 500);
@@ -147,6 +169,9 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
  * Body: { email, password }
  */
 app.post('/api/auth/login', authLimiter, async (req, res) => {
+
+// POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return error(res, 'Email and password required.');
@@ -195,6 +220,22 @@ app.get('/api/users/me', auth(), async (req, res) => {
     error(res, 'Failed to fetch profile.', 500);
   }
 });
+app.delete('/api/produce/:id', auth(['farmer']), async (req, res) => {
+  try {
+    const items = await query('SELECT * FROM produce WHERE id = ?', [req.params.id]);
+    if (!items.length) return res.status(404).json({ success: false, error: 'Produce not found.' });
+    if (items[0].farmer_id !== req.user.id)
+      return res.status(403).json({ success: false, error: 'You can only remove your own listings.' });
+
+    await query('DELETE FROM produce WHERE id = ?', [req.params.id]);
+    res.json({ success: true, data: { message: 'Removed successfully.' } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to delete.' });
+  }
+});
+// ═════════════════════════════════════════════════════════
+//  TRANSPORT ROUTES  (Feature 2 — Farmer only)
+// ═════════════════════════════════════════════════════════
 
 // ─── PRODUCE ROUTES ───────────────────────────────────────────────────────────
 
@@ -235,3 +276,33 @@ app.post('/api/produce', auth(['farmer']), async (req, res) => {
     error(res, 'Failed to add produce.', 500);
   }
 });
+});
+
+app.patch('/api/transport/:id', auth(['farmer']), async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (status !== 'Cancelled')
+      return res.status(400).json({ success: false, error: 'Farmers can only cancel requests.' });
+
+    const items = await query('SELECT * FROM transport_requests WHERE id = ?', [req.params.id]);
+
+    if (!items.length)
+      return res.status(404).json({ success: false, error: 'Request not found.' });
+
+    if (items[0].farmer_id !== req.user.id)
+      return res.status(403).json({ success: false, error: 'Not your request.' });
+
+    await query('UPDATE transport_requests SET status = ? WHERE id = ?', ['Cancelled', req.params.id]);
+
+    res.json({ success: true, data: { message: 'Request cancelled.' } });
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to cancel.' });
+  }
+});
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+module.exports = app;
