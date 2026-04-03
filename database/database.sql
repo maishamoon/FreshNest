@@ -154,6 +154,17 @@ INSERT INTO produce_conditions (produce_name, category, emoji, storage_temp, sto
 ('Bitter Gourd', 'Vegetable', '🫑', '10–12°C', '85–90%', 7,  'Year-round', 'Store in cool and shaded area. Avoid direct sunlight.'),
 ('Pumpkin',      'Vegetable', '🎃', '10–13°C', '60–70%', 60, 'Year-round', 'Keep stem intact. Store in dry area with good ventilation.');
 
+-- ── Demo Users (bcrypt hash for "pass123") ────────────────
+-- Hash: $2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i
+INSERT INTO users (name, email, password_hash, role, location, vehicle_type) VALUES
+('Admin User',      'admin@harvest.bd',  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'admin',     '',          ''),
+('Rahim Uddin',     'rahim@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Rajshahi',  ''),
+('Sufia Begum',     'sufia@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Mymensingh',''),
+('Karim Transport', 'karim@trans.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'transport', '',          'Refrigerated Truck'),
+('Dhaka Fresh Ltd', 'dhaka@fresh.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer',    'Dhaka',     ''),
+('Chittagong Grocers', 'chittagong@fresh.bd', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer', 'Chittagong', '');
+
+
 
 
 -- SAMPLE DATA (password: demo1234)
