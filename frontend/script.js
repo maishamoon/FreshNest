@@ -511,3 +511,10 @@ async function removeProduct(id) {
     showAlert('prod-alert', e.message || 'Failed to remove.', 'danger');
   }
 }
+function renderTransportReqs() {
+  const myT = state.trans.filter(t=>t.farmerId===state.user.id);
+  const myP = state.products.filter(p=>p.farmerId===state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Transport Requests</h2><button class="btn btn-gold" onclick="openAddTransport()">+ New Request</button></div>
+    <div id="trans-alert"></div>
+    
