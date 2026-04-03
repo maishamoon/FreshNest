@@ -232,3 +232,18 @@ function doLogout() {
   document.getElementById('app').style.display='none';
   document.getElementById('auth-page').style.display='flex';
 }
+// ─── APP INIT ─────────────────────────────────────────────────────────────────
+const ROLE_CFG = {
+  farmer:    { color:'#27AE60', bg:'#1E8449', icon:'🌾', navItems: [
+    { id:'dashboard', label:'Dashboard',          icon:'📊' },
+    { id:'products',  label:'My Produce',         icon:'🌿' },
+    { id:'transport', label:'Transport Requests',  icon:'🚛' },
+    { id:'deals',     label:'My Deals',            icon:'🤝' },
+    { id:'storage',   label:'Storage Guide',       icon:'📦' },
+  ]},
+  transport: { color:'#E67E22', bg:'#CA6F1E', icon:'🚛', navItems: [
+    { id:'dashboard', label:'Dashboard',           icon:'📊' },
+    { id:'offers',    label:'Browse Requests',     icon:'📋' },
+    { id:'myjobs',    label:'My Jobs',             icon:'🗓️' },
+    { id:'failures',  label:'Report Failure',      icon:'⚠️' },
+  ]},
