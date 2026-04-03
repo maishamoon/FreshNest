@@ -63,25 +63,17 @@ async function apiFetch(path, opts = {}) {
   
   if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
   const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  const text = await res.text();
   let data;
-  
-  try {
-    data = await res.json();
-  } catch (err) {
-    const text = await res.text();
-    data = { error: text };
-  }
-
-  if (!res.ok) {
-    throw new Error(data.error || 'Request failed');
-  }
+  try { data = JSON.parse(text); } catch { data = { error: text }; }
+  if (!res.ok) throw new Error(data.error || 'Request failed');
   return data.data;
 }
 
-/ ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
+// ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
 
 
-function normUser(u)    { return { ...u, vehicle: u.vehicle_type||'', joined: (u.created_at||'').slice(0,10) }; }
+function normUser(u)    { return { ...u, vehicle: u.vehicle_type || u.vehicle || '', joined: (u.created_at || u.joined || '').slice(0,10) }; }
 function normProduce(p) {
   const db = PRODUCE_DB[p.name] || {};
   return { ...p, farmerId: p.farmer_id, farmerName: p.farmer_name,
@@ -160,6 +152,15 @@ function switchAuthTab(tab) {
   document.getElementById('login-form').style.display    = tab==='login'?'block':'none';
   document.getElementById('register-form').style.display = tab==='register'?'block':'none';
   document.getElementById('auth-alert').innerHTML='';
+  
+  const hint = document.getElementById('auth-toggle-hint');
+  if (hint) {
+    if (tab === 'login') {
+      hint.innerHTML = 'Don\'t have an account? <a href="javascript:void(0)" onclick="switchAuthTab(\'register\')" style="color:var(--green);font-weight:600;text-decoration:underline">Register</a>';
+    } else {
+      hint.innerHTML = 'Already have an account? <a href="javascript:void(0)" onclick="switchAuthTab(\'login\')" style="color:var(--green);font-weight:600;text-decoration:underline">Sign In</a>';
+    }
+  }
 }
 
 
@@ -194,9 +195,19 @@ async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   if (!email || !pass) return showAlert('auth-alert','Email and password required.','danger');
+  
+  const user = SEED_USERS.find(u => u.email === email && u.password === pass);
+  if (user) {
+    state.user  = { ...user, vehicle: user.vehicle || '' };
+    state.token = 'demo-token';
+    try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
+    loadDemoData();
+    initApp();
+    return;
+  }
+  
   try {
     showAlert('auth-alert','Signing in...','info');
-    
     const data = await apiFetch('/auth/login', { method:'POST', body: JSON.stringify({ email, password: pass }) });
     state.token = data.token;
     state.user  = { ...data.user, vehicle: data.user.vehicle||'' };
@@ -207,19 +218,6 @@ async function doLogin() {
   } 
    
   catch(e) {
-    if (e.message && e.message.toLowerCase().includes('failed to fetch')) {
-      const user = SEED_USERS.find(u => u.email === email && u.password === pass);
-      
-      if (user) {
-        state.user  = { ...user, vehicle: user.vehicle || '' };
-        state.token = 'demo-token';
-        
-        try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
-        loadDemoData();
-        initApp();
-        return;
-      }
-    }
     showAlert('auth-alert', e.message || 'Invalid email or password.', 'danger');
   }
 }
@@ -325,11 +323,11 @@ const ROLE_CFG = {
 
 function initApp() {
   document.getElementById('auth-page').style.display='none';
-  document.getElementById('app').style.display='block';
+  document.getElementById('app').style.display='flex';
   const u = state.user;
-  const cfg = ROLE_CFG[u.role];app3
+  const cfg = ROLE_CFG[u.role];
   
-  onst avatar = u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const avatar = u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('sidebar-user-info').innerHTML = `
     
   <div class="sidebar-user-avatar" style="background:${cfg.bg}">${avatar}</div>
@@ -383,15 +381,15 @@ function navigate(id) {
 }
 
 
-/ ──────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
 //  FARMER PAGES
 // ──────────────────────────────────────────────────────────────────────────────
  
 function renderFarmerDashboard() {
   const u = state.user;
-  const myP = state.products.filter(p=>p.farmerId===u.id);
-  const myT = state.trans.filter(t=>t.farmerId===u.id);
-  const myD = state.deals.filter(d=>d.farmerId===u.id);
+  const myP = state.products.filter(p=>p.farmerId===u.id || p.farmer_id===u.id);
+  const myT = state.trans.filter(t=>t.farmerId===u.id || t.farmer_id===u.id);
+  const myD = state.deals.filter(d=>d.farmerId===u.id || d.farmer_id===u.id);
   const pending = myD.filter(d=>d.status==='Pending').length;
   document.getElementById('page-body').innerHTML = `
     
@@ -434,6 +432,33 @@ function renderFarmerDashboard() {
   `;
 }
 
+function renderMyProducts() {
+  const myP = state.products.filter(p => p.farmerId === state.user.id || p.farmer_id === state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>My Produce</h2><button class="btn btn-primary" onclick="openAddProduct()">+ Add Produce</button></div>
+    <div id="prod-alert"></div>
+    ${myP.length === 0
+      ? `<div class="card"><div class="empty-state"><div class="empty-icon">🌿</div><p>No produce listed yet. Add your first item!</p></div></div>`
+      : `<div class="card"><div class="card-body table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Produce</th><th>Category</th><th>Qty</th><th>Harvest Date</th><th>Location</th><th>Temp</th><th>Fresh Days</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>${myP.map(p => `<tr>
+            <td>${p.emoji || '🌿'} <strong>${p.name}</strong></td>
+            <td><span class="badge ${p.category === 'Fruit' ? 'badge-gold' : 'badge-green'}">${p.category}</span></td>
+            <td>${p.quantity} ${p.unit}</td>
+            <td>${p.harvestDate || p.harvest_date || ''}</td>
+            <td>${p.location}</td>
+            <td>${p.temp || ''}</td>
+            <td>${p.freshDays || ''} days</td>
+            <td>${badge(p.status)}</td>
+            <td><button class="btn btn-sm" style="background:#C0392B;color:white" onclick="removeProduct(${p.id})">Remove</button></td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </div></div>`}
+  `;
+}
+
 function openAddProduct() {
   
   const myP = state.products.filter(p=>p.farmerId===state.user.id);
@@ -469,7 +494,6 @@ openModal(`<div class="modal">
       </div>
       <button class="btn btn-primary btn-full" onclick="submitAddProduct()">Add to Listing</button>
     </div>
-    up22up
   </div>`);
   
   updateStorageTip();
@@ -505,16 +529,14 @@ if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','
     state.products.push(normProduce(item));
     closeModal();
     renderMyProducts();
-  } c
-  atch(e) {
+  } catch(e) {
     showAlert('add-prod-alert', e.message || 'Failed to add produce.', 'danger');
   }
 }
 async function removeProduct(id) {
-  t
-  ry {
+  try {
     await apiFetch('/produce/'+id, { method:'DELETE' });
-    state.products = state.products.filter(p=>p.id!==id);
+    state.products = state.products.filter(p=>String(p.id)!==String(id));
     renderMyProducts();
   } 
   catch(e) {
@@ -599,7 +621,7 @@ async function submitTransport() {
  
   try {
     const item = await apiFetch('/transport', { method:'POST', body: JSON.stringify({
-      product_id: prodId, produce_name: prod?.name,
+      product_id: Number(prodId), produce_name: prod?.name,
       pickup_location: document.getElementById('at-pickup').value||prod?.location,
       destination: dest, pickup_date: document.getElementById('at-date').value,
       quantity: document.getElementById('at-qty').value,
@@ -619,7 +641,7 @@ async function submitTransport() {
 
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
-    state.trans = state.trans.map(t=>t.id===id?{...t,status:'Cancelled'}:t);
+    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Cancelled'}:t);
     renderTransportReqs();
   } 
   catch(e) { alert('Failed: '+e.message); }
@@ -663,7 +685,7 @@ async function respondDeal(id, status)
   try 
   {
     await apiFetch('/deals/'+id, { method:'PATCH', body: JSON.stringify({ status }) });
-    state.deals = state.deals.map(d=>d.id===id?{...d,status}:d);
+    state.deals = state.deals.map(d=>String(d.id)===String(id)?{...d,status}:d);
     renderFarmerDeals();
 
   } 
@@ -778,7 +800,7 @@ function renderBrowseRequests()
 async function acceptJob(id) {
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
-    state.trans = state.trans.map(t=>t.id===id?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
     renderBrowseRequests();
   } catch(e) { alert('Failed: '+e.message); }
 }
@@ -810,7 +832,7 @@ function renderMyJobs()
 async function completeJob(id) {
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Completed' }) });
-    state.trans = state.trans.map(t=>t.id===id?{...t,status:'Completed'}:t);
+    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
     renderMyJobs();
   } catch(e) { alert('Failed: '+e.message); }
 }
@@ -902,7 +924,7 @@ async function submitFailure()
     })});
 
     state.failures.push(normFail(fail));
-    state.trans = state.trans.map(t=>t.id===jobId?{...t,status:'Failed'}:t);
+    state.trans = state.trans.map(t=>String(t.id)===String(jobId)?{...t,status:'Failed'}:t);
     closeModal();
     renderFailures();
   }
@@ -1331,53 +1353,34 @@ function renderAdminFailures() {
 
 document.getElementById('topbar-date') && (document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-BD',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
 
-(function restoreSession()
-{
- 
+(async function restoreSession() {
   try {
-    
-    const token = localStorage.getItem('hl_token');
-
+    const token   = localStorage.getItem('hl_token');
     const userRaw = localStorage.getItem('hl_user');
-
     if (!token || !userRaw) return;
-    const user = JSON.parse(userRaw);
 
     state.token = token;
-    state.user = user;
+    state.user  = JSON.parse(userRaw);
 
-
-    try {
-      
-      const emailEl = document.getElementById('login-email');
-     
-      if (emailEl && user.email) emailEl.value = user.email;
-    } 
-    catch(_){}
-
-    if (token && token !== 'demo-token')
-       {
-      apiFetch('/users/me').then(me=>{
-        
-        state.user = normUser({ ...me, vehicle_type: me.vehicle_type });
-     
-      }).catch(err=>{
-        console.warn('Session validation failed:', err);
-        
-        try { localStorage.removeItem('hl_token'); localStorage.removeItem('hl_user'); } catch(_){}
-        
-        state.token = null; state.user = null;
-
-      });
-
+    if (token === 'demo-token') {
+      loadDemoData();
+      initApp();
+      return;
     }
 
-    
-  } 
-  catch(e) 
-  {
-
+    // Real token — validate and reload
+    try {
+      const me = await apiFetch('/users/me');
+      state.user = normUser(me);
+      await loadAll();
+      initApp();
+    } catch (err) {
+      localStorage.removeItem('hl_token');
+      localStorage.removeItem('hl_user');
+      state.token = null;
+      state.user  = null;
+    }
+  } catch (e) {
     console.warn('restoreSession error', e);
   }
-
 })();
