@@ -110,28 +110,9 @@ function error(res, msg, status = 400) {
  * POST /api/auth/register
  * Body: { name, email, password, role, location?, vehicle? }
  */
-app.post('/api/auth/register', authLimiter, async (req, res) => {
-  try {
-    const { name, email, password, role, location = '', vehicle = '' } = req.body;
-
-    // Validation
-    if (!name || !email || !password || !role) return error(res, 'All fields required.');
-    if (!['farmer', 'transport', 'dealer'].includes(role)) return error(res, 'Invalid role.');
-    if (password.length < 6) return error(res, 'Password must be at least 6 characters.');
-
-    // Check duplicate
-    const existing = await query('SELECT id FROM users WHERE email = ?', [email]);
-    if (existing.length) return error(res, 'Email already registered.');
-
-    // Hash + insert
-// ═════════════════════════════════════════════════════════
-//  AUTH ROUTES
-// ═════════════════════════════════════════════════════════
-
-// POST /api/auth/register
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, role, location } = req.body;
+    const { name, email, password, role, location, vehicle } = req.body;
 
     if (!name || !email || !password || !role)
       return res.status(400).json({ success: false, error: 'Name, email, password, and role are required.' });
@@ -155,10 +136,6 @@ app.post('/api/auth/register', async (req, res) => {
     } else {
       success(res, { id: result.insertId, name, email, role, location, vehicle, created_at: new Date().toISOString() }, 201);
     }
-    res.status(201).json({
-      success: true,
-      data: { id: result.insertId, name, email, role, location }
-    });
   } catch (err) {
     console.error(err);
     error(res, 'Registration failed.', 500);
@@ -168,9 +145,6 @@ app.post('/api/auth/register', async (req, res) => {
  * POST /api/auth/login
  * Body: { email, password }
  */
-app.post('/api/auth/login', authLimiter, async (req, res) => {
-
-// POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -220,19 +194,6 @@ app.get('/api/users/me', auth(), async (req, res) => {
     error(res, 'Failed to fetch profile.', 500);
   }
 });
-app.delete('/api/produce/:id', auth(['farmer']), async (req, res) => {
-  try {
-    const items = await query('SELECT * FROM produce WHERE id = ?', [req.params.id]);
-    if (!items.length) return res.status(404).json({ success: false, error: 'Produce not found.' });
-    if (items[0].farmer_id !== req.user.id)
-      return res.status(403).json({ success: false, error: 'You can only remove your own listings.' });
-
-    await query('DELETE FROM produce WHERE id = ?', [req.params.id]);
-    res.json({ success: true, data: { message: 'Removed successfully.' } });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to delete.' });
-  }
-});
 // ═════════════════════════════════════════════════════════
 //  TRANSPORT ROUTES  (Feature 2 — Farmer only)
 // ═════════════════════════════════════════════════════════
@@ -276,33 +237,29 @@ app.post('/api/produce', auth(['farmer']), async (req, res) => {
     error(res, 'Failed to add produce.', 500);
   }
 });
-});
 
-app.patch('/api/transport/:id', auth(['farmer']), async (req, res) => {
+/** DELETE /api/produce/:id — Farmer (own) or Admin */
+app.delete('/api/produce/:id', auth(['farmer', 'admin']), async (req, res) => {
   try {
-    const { status } = req.body;
+    const item = await query('SELECT * FROM produce WHERE id = ?', [req.params.id]);
+    if (!item.length) return error(res, 'Produce not found.', 404);
+    if (req.user.role === 'farmer' && item[0].farmer_id !== req.user.id) return error(res, 'Not your listing.', 403);
 
-    if (status !== 'Cancelled')
-      return res.status(400).json({ success: false, error: 'Farmers can only cancel requests.' });
-
-    const items = await query('SELECT * FROM transport_requests WHERE id = ?', [req.params.id]);
-
-    if (!items.length)
-      return res.status(404).json({ success: false, error: 'Request not found.' });
-
-    if (items[0].farmer_id !== req.user.id)
-      return res.status(403).json({ success: false, error: 'Not your request.' });
-
-    await query('UPDATE transport_requests SET status = ? WHERE id = ?', ['Cancelled', req.params.id]);
-
-    res.json({ success: true, data: { message: 'Request cancelled.' } });
-
+    await query('DELETE FROM produce WHERE id = ?', [req.params.id]);
+    success(res, { message: 'Produce removed.' });
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to cancel.' });
+    error(res, 'Failed to delete produce.', 500);
   }
 });
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
 
-module.exports = app;
+/** PATCH /api/produce/:id/status */
+app.patch('/api/produce/:id/status', auth(['farmer', 'admin']), async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['Available', 'Sold', 'Reserved'].includes(status)) return error(res, 'Invalid status.');
+    await query('UPDATE produce SET status = ? WHERE id = ?', [status, req.params.id]);
+    success(res, { message: 'Status updated.' });
+  } catch (err) {
+    error(res, 'Failed to update status.', 500);
+  }
+});
