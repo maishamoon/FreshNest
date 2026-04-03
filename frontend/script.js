@@ -863,3 +863,108 @@ async function submitFailure() {
     showAlert('rf-alert', e.message || 'Failed to submit.', 'danger');
   }
 }
+// ──────────────────────────────────────────────────────────────────────────────
+//  DEALER PAGES
+// ──────────────────────────────────────────────────────────────────────────────
+function renderDealerDashboard() {
+  const u = state.user;
+  const myD = state.deals.filter(d=>d.dealerId===u.id);
+  const avail = state.products.filter(p=>p.status==='Available');
+  document.getElementById('page-body').innerHTML = `
+    <div class="hero-banner" style="background:linear-gradient(135deg,#1A5276,#2471A3,#2980B9)">
+      <div class="inner"><h2>Welcome, ${u.name}! 🏪</h2><p>Discover fresh produce from farmers across Bangladesh. Make deals and build direct supply chains.</p></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card green" data-icon="🛒"><div class="stat-value">${avail.length}</div><div class="stat-label">Available Items</div><div class="stat-sub">Ready to buy</div></div>
+      <div class="stat-card gold" data-icon="🤝"><div class="stat-value">${myD.length}</div><div class="stat-label">Total Deals</div><div class="stat-sub">All time</div></div>
+      <div class="stat-card forest" data-icon="✅"><div class="stat-value">${myD.filter(d=>d.status==='Accepted').length}</div><div class="stat-label">Accepted Deals</div><div class="stat-sub">Confirmed</div></div>
+      <div class="stat-card sage" data-icon="⏳"><div class="stat-value">${myD.filter(d=>d.status==='Pending').length}</div><div class="stat-label">Pending</div><div class="stat-sub">Awaiting farmer response</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🌟 Featured Produce</div><button class="btn btn-sm btn-primary" onclick="navigate('browse')">Browse All</button></div>
+      <div class="produce-grid" style="padding:1.5rem;gap:1rem;">
+        ${avail.slice(0,6).map(p=>`
+          <div class="produce-card" onclick="openDealModal('${p.id}')" style="cursor:pointer">
+            <div class="produce-card-header" style="background:${p.category==='Fruit'?'linear-gradient(135deg,#FEF9E7,#FDEBD0)':'linear-gradient(135deg,#E9F7EF,#D5F5E3)'}">
+              <span class="badge ${p.category==='Fruit'?'badge-gold':'badge-green'}" style="position:absolute;top:10px;left:12px">${p.category}</span>
+              <span class="produce-emoji">${p.emoji||'🌿'}</span>
+              <div class="produce-name">${p.name}</div>
+              <div class="produce-meta">by ${p.farmerName} · ${p.location}</div>
+            </div>
+            <div class="produce-card-body">
+              <div class="produce-info-row"><span class="produce-info-label">📦 Stock</span><span class="produce-info-val">${p.quantity} ${p.unit}</span></div>
+              <div class="produce-info-row"><span class="produce-info-label">🗓️ Fresh for</span><span class="produce-info-val">${p.freshDays} days</span></div>
+              <div style="margin-top:10px"><button class="btn btn-gold btn-full">Make Offer</button></div>
+            </div>
+          </div>
+        `).join('')||'<p style="color:var(--mist);padding:1rem">No produce available.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function renderBrowseProduce() {
+  const avail = state.products.filter(p=>p.status==='Available');
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Browse Produce</h2>
+      <div style="display:flex;gap:8px">
+        <select class="form-control" id="filter-cat" onchange="filterProduce()" style="width:auto;padding:8px 14px">
+          <option value="">All Categories</option><option>Fruit</option><option>Vegetable</option>
+        </select>
+      </div>
+    </div>
+    <div id="deal-alert"></div>
+    <div id="produce-grid" class="produce-grid">
+      ${avail.map(p=>produceCardDealer(p)).join('')}
+    </div>
+    ${avail.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🛒</div><p>No produce available right now.</p></div></div>`:''}
+  `;
+}
+
+function filterProduce() {
+  const cat = document.getElementById('filter-cat')?.value;
+  const avail = state.products.filter(p=>p.status==='Available' && (!cat||p.category===cat));
+  const grid = document.getElementById('produce-grid');
+  if(grid) grid.innerHTML = avail.map(p=>produceCardDealer(p)).join('');
+}
+
+function produceCardDealer(p) {
+  return `<div class="produce-card">
+    <div class="produce-card-header" style="background:${p.category==='Fruit'?'linear-gradient(135deg,#FEF9E7,#FDEBD0)':'linear-gradient(135deg,#E9F7EF,#D5F5E3)'}">
+      <span class="badge ${p.category==='Fruit'?'badge-gold':'badge-green'}" style="position:absolute;top:10px;left:12px">${p.category}</span>
+      <span class="produce-emoji">${p.emoji||'🌿'}</span>
+      <div class="produce-name">${p.name}</div>
+      <div class="produce-meta">by ${p.farmerName} · 📍${p.location}</div>
+    </div>
+    <div class="produce-card-body">
+      <div class="produce-info-row"><span class="produce-info-label">📦 Available</span><span class="produce-info-val">${p.quantity} ${p.unit}</span></div>
+      <div class="produce-info-row"><span class="produce-info-label">🌡️ Storage</span><span class="produce-info-val">${p.temp}</span></div>
+      <div class="produce-info-row"><span class="produce-info-label">🗓️ Fresh for</span><span class="produce-info-val">${p.freshDays} days</span></div>
+      <div class="produce-info-row"><span class="produce-info-label">📅 Harvested</span><span class="produce-info-val">${p.harvestDate}</span></div>
+      <div style="margin-top:12px"><button class="btn btn-gold btn-full" onclick="openDealModal('${p.id}')">🤝 Make Offer</button></div>
+    </div>
+  </div>`;
+}
+
+function openDealModal(productId) {
+  const p = state.products.find(pr=>pr.id===productId);
+  if(!p) return;
+  openModal(`<div class="modal">
+    <div class="modal-header"><span class="modal-title">🤝 Make Deal Offer</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div style="background:var(--foam);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem;border:1.5px solid var(--mint)">
+        <div style="font-size:2rem">${p.emoji||'🌿'}</div>
+        <div style="font-weight:700;font-size:1.1rem;color:var(--forest)">${p.name}</div>
+        <div style="font-size:.85rem;color:var(--slate);margin-top:3px">by ${p.farmerName} · ${p.location} · ${p.quantity} ${p.unit} available</div>
+        <div style="margin-top:8px;font-size:.82rem;color:var(--green)">${p.tips}</div>
+      </div>
+      <div id="dm-alert"></div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Quantity Wanted</label><input class="form-control" id="dm-qty" type="number" placeholder="kg / units"></div>
+        <div class="form-group"><label class="form-label">Offered Price (৳/kg)</label><input class="form-control" id="dm-price" type="number" placeholder="e.g. 75"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Message to Farmer (optional)</label><textarea class="form-control" id="dm-msg" placeholder="Any special requirements..."></textarea></div>
+      <button class="btn btn-gold btn-full" onclick="submitDeal('${productId}')">Send Offer to Farmer</button>
+    </div>
+  </div>`);
+}
