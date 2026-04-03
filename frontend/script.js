@@ -51,3 +51,8 @@ const SEED_DEALS = [
 const API_BASE = 'http://localhost:5000/api';
 
 function today() { return new Date().toISOString().slice(0,10); }
+async function apiFetch(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  
