@@ -518,7 +518,7 @@ function renderTransportReqs() {
      
   <div class="section-header"><h2>Transport Requests</h2><button class="btn btn-gold" onclick="openAddTransport()">+ New Request</button></div>
     <div id="trans-alert"></div>
-    
+
    ${myT.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🚛</div><p>No transport requests yet.</p></div></div>`:`
     <div class="card"><div class="card-body table-wrap">
     
@@ -535,3 +535,36 @@ function renderTransportReqs() {
     </table></div></div>`}
   `;
 }  
+function openAddTransport() {
+  const myP = state.products.filter(p=>p.farmerId===state.user.id);
+  openModal(`<div class="modal">
+    <div class="modal-header"><span class="modal-title">🚛 New Transport Request</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div id="at-alert"></div>
+      <div class="form-group"><label class="form-label">Select Produce</label>
+        <select class="form-control" id="at-prod">
+          <option value="">-- Select Produce --</option>
+          ${myP.map(p=>`<option value="${p.id}" data-loc="${p.location}">${p.emoji||'🌿'} ${p.name} (${p.quantity} ${p.unit})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Pickup Location</label><input class="form-control" id="at-pickup" placeholder="Auto from product"></div>
+        <div class="form-group"><label class="form-label">Destination</label><input class="form-control" id="at-dest" placeholder="e.g. Dhaka Kawran Bazar"></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Pickup Date</label><input class="form-control" type="date" id="at-date" value="${today()}"></div>
+        <div class="form-group"><label class="form-label">Quantity</label><input class="form-control" id="at-qty" placeholder="e.g. 500 kg"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Special Instructions</label><textarea class="form-control" id="at-notes" placeholder="e.g. Refrigerated vehicle required..."></textarea></div>
+      <button class="btn btn-primary btn-full" onclick="submitTransport()">Submit Request</button>
+    </div>
+  </div>`);
+  document.getElementById('at-prod').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const loc = opt.getAttribute('data-loc');
+    if(loc) document.getElementById('at-pickup').value = loc;
+  });
+}
+
+async function submitTransport() {
+  const prodId=document.getElementById('at-prod').value;
