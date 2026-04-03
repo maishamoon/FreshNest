@@ -690,3 +690,176 @@ function produceCard(name, info) {
     </div>
   </div>`;
 }
+// ──────────────────────────────────────────────────────────────────────────────
+//  TRANSPORT PAGES
+// ──────────────────────────────────────────────────────────────────────────────
+function renderTransportDashboard() {
+  const u = state.user;
+  const myJobs = state.trans.filter(t=>t.assignedTo===u.id);
+  const myFail = state.failures.filter(f=>f.transporterId===u.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="hero-banner" style="background:linear-gradient(135deg,#7E5109,#CA6F1E,#E67E22)">
+      <div class="inner"><h2>Welcome, ${u.name}! 🚛</h2><p>Browse open transport requests, accept jobs, and manage your deliveries efficiently.</p></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card green" data-icon="📋"><div class="stat-value">${state.trans.filter(t=>t.status==='Open').length}</div><div class="stat-label">Open Requests</div><div class="stat-sub">Available to accept</div></div>
+      <div class="stat-card gold" data-icon="🗓️"><div class="stat-value">${myJobs.filter(j=>j.status==='Accepted').length}</div><div class="stat-label">Active Jobs</div><div class="stat-sub">In progress</div></div>
+      <div class="stat-card forest" data-icon="✅"><div class="stat-value">${myJobs.filter(j=>j.status==='Completed').length}</div><div class="stat-label">Completed</div><div class="stat-sub">Delivered</div></div>
+      <div class="stat-card sage" data-icon="⚠️"><div class="stat-value">${myFail.length}</div><div class="stat-label">Failures Reported</div><div class="stat-sub">Incidents</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔥 Open Requests Nearby</div><button class="btn btn-sm btn-primary" onclick="navigate('offers')">View All</button></div>
+      <div class="card-body table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Farmer</th><th>Produce</th><th>Route</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody>${state.trans.filter(t=>t.status==='Open').slice(0,5).map(t=>`<tr>
+          <td>${t.farmerName}</td><td>${produceEmoji(t.product)} ${t.product}</td>
+          <td>${t.pickup} → ${t.destination}</td><td>${t.date}</td>
+          <td><button class="btn btn-sm btn-primary" onclick="acceptJob('${t.id}')">Accept</button></td>
+        </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#8FA8A0;padding:20px">No open requests</td></tr>'}</tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+function renderBrowseRequests() {
+  const open = state.trans.filter(t=>t.status==='Open');
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Browse Requests</h2></div>
+    <div id="offer-alert"></div>
+    ${open.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">📋</div><p>No open requests at the moment.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Farmer</th><th>Produce</th><th>Pickup</th><th>Destination</th><th>Date</th><th>Qty</th><th>Notes</th><th>Action</th></tr></thead>
+      <tbody>${open.map(t=>`<tr>
+        <td><strong>${t.farmerName}</strong></td>
+        <td>${produceEmoji(t.product)} ${t.product}</td>
+        <td>📍${t.pickup}</td><td>📍${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td style="max-width:150px;font-size:.8rem;color:var(--slate)">${t.notes||'—'}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="acceptJob('${t.id}')">✓ Accept</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
+  `;
+}
+
+async function acceptJob(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
+    state.trans = state.trans.map(t=>t.id===id?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+    renderBrowseRequests();
+  } catch(e) { alert('Failed: '+e.message); }
+}
+
+function renderMyJobs() {
+  const mine = state.trans.filter(t=>t.assignedTo===state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>My Jobs</h2></div>
+    <div id="job-alert"></div>
+    ${mine.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🗓️</div><p>No accepted jobs yet. Browse open requests.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${mine.map(t=>`<tr>
+        <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
+        <td>${t.pickup} → ${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td>${badge(t.status)}</td>
+        <td>${t.status==='Accepted'?`<button class="btn btn-sm btn-primary" onclick="completeJob('${t.id}')">✓ Delivered</button>`:'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
+  `;
+}
+
+async function completeJob(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Completed' }) });
+    state.trans = state.trans.map(t=>t.id===id?{...t,status:'Completed'}:t);
+    renderMyJobs();
+  } catch(e) { alert('Failed: '+e.message); }
+}
+
+function renderFailures() {
+  const myFail = state.failures.filter(f=>f.transporterId===state.user.id);
+  const myJobs = state.trans.filter(t=>t.assignedTo===state.user.id && t.status==='Accepted');
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Delivery Failures</h2><button class="btn btn-gold" onclick="openReportFailure()">⚠️ Report Failure</button></div>
+    <div id="fail-alert"></div>
+    ${myFail.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">✅</div><p>No failures reported. Keep up the good work!</p></div></div>`:''}
+    ${myFail.map(f=>`
+      <div class="failure-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:700;color:var(--amber);font-size:1.05rem">${produceEmoji(f.product)} ${f.product}</div>
+            <div style="font-size:.85rem;color:var(--slate);margin-top:3px">Route: ${f.route} · ${f.reported}</div>
+            <div style="font-size:.85rem;margin-top:5px"><strong>Reason:</strong> ${f.reason}</div>
+            ${f.notes?`<div style="font-size:.82rem;color:var(--slate);margin-top:3px;font-style:italic">"${f.notes}"</div>`:''}
+          </div>
+          <span class="badge badge-gold">Failure Reported</span>
+        </div>
+        <div class="alternatives-box">
+          <h4>🔄 Suggested Alternative Actions</h4>
+          ${f.alternatives.map(a=>`<div class="alt-item">${a}</div>`).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+const FAIL_REASONS = ['Vehicle breakdown','Road flooded / blocked','Driver unavailable','Fuel shortage','Accident','Extreme weather','Customs/checkpoint delay','Other'];
+const ALTERNATIVES = [
+  'Redirect to nearest government cold storage facility',
+  'Contact alternate registered transport provider in the area',
+  'Sell to local market or wholesaler to avoid total loss',
+  'Split consignment — partial delivery via alternate route',
+  'Refrigerated holding at origin until transport resumes',
+  'Coordinate with district agricultural officer for emergency logistics',
+  'Use rail freight as alternative if available on route',
+];
+
+function openReportFailure() {
+  const jobs = state.trans.filter(t=>t.assignedTo===state.user.id && t.status==='Accepted');
+  openModal(`<div class="modal">
+    <div class="modal-header"><span class="modal-title">⚠️ Report Delivery Failure</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div id="rf-alert"></div>
+      <div class="form-group"><label class="form-label">Select Job</label>
+        <select class="form-control" id="rf-job">
+          <option value="">-- Select Active Job --</option>
+          ${jobs.map(j=>`<option value="${j.id}">${j.product} — ${j.pickup} → ${j.destination}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Failure Reason</label>
+        <select class="form-control" id="rf-reason">
+          <option value="">-- Select Reason --</option>
+          ${FAIL_REASONS.map(r=>`<option>${r}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Additional Details</label>
+        <textarea class="form-control" id="rf-notes" placeholder="Describe what happened and your current situation..."></textarea>
+      </div>
+      <button class="btn btn-gold btn-full" onclick="submitFailure()">Submit Failure Report</button>
+    </div>
+  </div>`);
+}
+
+async function submitFailure() {
+  const jobId = document.getElementById('rf-job').value;
+  const reason = document.getElementById('rf-reason').value;
+  if(!jobId||!reason) return showAlert('rf-alert','Please select a job and reason.','danger');
+  const job = state.trans.find(t=>t.id===jobId);
+  const alts = ALTERNATIVES.filter(()=>Math.random()>.3).slice(0,4);
+  try {
+    const fail = await apiFetch('/failures', { method:'POST', body: JSON.stringify({
+      transport_request_id: jobId, produce_name: job?.product,
+      route: `${job?.pickup} → ${job?.destination}`,
+      reason, notes: document.getElementById('rf-notes').value, alternatives: alts
+    })});
+    state.failures.push(normFail(fail));
+    state.trans = state.trans.map(t=>t.id===jobId?{...t,status:'Failed'}:t);
+    closeModal();
+    renderFailures();
+  } catch(e) {
+    showAlert('rf-alert', e.message || 'Failed to submit.', 'danger');
+  }
+}
