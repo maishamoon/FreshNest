@@ -443,3 +443,131 @@
 textarea.form-control { resize: vertical; min-height: 80px; }
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: all .18s;
+  text-decoration: none;
+}
+
+.btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.btn:active { transform: translateY(0); }
+
+.btn-primary   { background: var(--green); color: var(--white); }
+.btn-gold      { background: linear-gradient(135deg, var(--gold), var(--amber)); color: var(--white); }
+.btn-danger    { background: var(--red); color: var(--white); }
+.btn-outline   { background: transparent; border: 2px solid var(--green); color: var(--green); }
+.btn-ghost     { background: var(--foam); color: var(--green); }
+.btn-sm { padding: 5px 13px; font-size: .78rem; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 1.2rem 1.5rem;
+  border-bottom: 1px solid var(--stone);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--forest);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-body { padding: 1.5rem; }
+
+/* ── STAT CARDS ── */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+
+.stat-card {
+  border-radius: var(--radius);
+  padding: 1.4rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s;
+}
+.stat-card:hover { transform: translateY(-3px); }
+
+.stat-card::after {
+  content: attr(data-icon);
+  position: absolute;
+  right: -5px;
+  bottom: -10px;
+  font-size: 4rem;
+  opacity: .15;
+}
+
+.stat-card.green  { background: linear-gradient(135deg, var(--green), var(--emerald)); color: var(--white); }
+.stat-card.gold   { background: linear-gradient(135deg, var(--gold), var(--amber)); color: var(--white); }
+.stat-card.forest { background: linear-gradient(135deg, var(--forest), var(--green)); color: var(--white); }
+.stat-card.sage   { background: linear-gradient(135deg, var(--sage), #52BE80); color: var(--white); }
+
+.stat-value { font-size: 2.2rem; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.stat-label { font-size: .82rem; opacity: .85; font-weight: 500; }
+.stat-sub   { font-size: .75rem; opacity: .7; margin-top: 6px; }
+
+/* ── HERO BANNER ── */
+.hero-banner {
+  background: linear-gradient(135deg, var(--forest) 0%, var(--green) 60%, var(--emerald) 100%);
+  border-radius: var(--radius);
+  padding: 2rem 2.5rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  color: var(--white);
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04' fill-rule='evenodd'%3E%3Ccircle cx='40' cy='40' r='20'/%3E%3Ccircle cx='0' cy='80' r='20'/%3E%3Ccircle cx='80' cy='0' r='20'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.hero-banner .inner { position: relative; z-index: 1; }
+.hero-banner h2 { font-family: 'Lora', serif; font-size: 1.7rem; font-weight: 600; margin-bottom: .4rem; }
+.hero-banner p  { opacity: .8; font-size: .92rem; line-height: 1.6; }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.data-table thead th {
+  background: var(--foam);
+  color: var(--green);
+  font-weight: 700;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 2px solid var(--mint);
+}
+.data-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ivory);
+  vertical-align: middle;
+  color: var(--ink);
+}
+.data-table tbody tr:hover td { background: var(--foam); }
+.data-table tbody tr:last-child td { border-bottom: none; }
