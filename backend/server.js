@@ -368,3 +368,20 @@ app.post('/api/deals', auth(['dealer']), async (req, res) => {
     error(res, 'Failed to create deal.', 500);
   }
 });
+
+/** PATCH /api/deals/:id — Farmer responds */
+app.patch('/api/deals/:id', auth(['farmer', 'admin']), async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['Accepted', 'Declined'].includes(status)) return error(res, 'Invalid status.');
+
+    const item = await query('SELECT * FROM deals WHERE id = ?', [req.params.id]);
+    if (!item.length) return error(res, 'Deal not found.', 404);
+    if (req.user.role === 'farmer' && item[0].farmer_id !== req.user.id) return error(res, 'Not your deal.', 403);
+
+    await query('UPDATE deals SET status = ?, responded_at = NOW() WHERE id = ?', [status, req.params.id]);
+    success(res, { message: `Deal ${status.toLowerCase()}.` });
+  } catch (err) {
+    error(res, 'Failed to update deal.', 500);
+  }
+});
