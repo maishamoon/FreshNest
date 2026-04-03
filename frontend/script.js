@@ -261,3 +261,8 @@ const ROLE_CFG = {
     { id:'failures',  label:'Failures',            icon:'⚠️' },
   ]},
 };
+function initApp() {
+  document.getElementById('auth-page').style.display='none';
+  document.getElementById('app').style.display='block';
+  const u = state.user;
+  const cfg = ROLE_CFG[u.role];app3
