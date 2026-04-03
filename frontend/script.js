@@ -137,4 +137,27 @@ function switchAuthTab(tab) {
   document.getElementById('register-form').style.display = tab==='register'?'block':'none';
   document.getElementById('auth-alert').innerHTML='';
 }
+function loadDemoData() {
+  state.users    = SEED_USERS.map(normUser);
+  state.products = SEED_PRODUCTS.map(normProduce);
+  state.trans     = SEED_TRANS.map(normTrans);
+  state.deals     = SEED_DEALS.map(normDeal);
+  state.failures  = [];
+}
+
+function quickLogin(email, pass) {
+  document.getElementById('login-email').value = email;
+  document.getElementById('login-pass').value = pass;
+  const demoUser = SEED_USERS.find(u => u.email === email && u.password === pass);
+  if (demoUser) {
+    state.user  = { ...demoUser, vehicle: demoUser.vehicle || '' };
+    state.token = 'demo-token';
+    localStorage.setItem('hl_token', state.token);
+    localStorage.setItem('hl_user', JSON.stringify(state.user));
+    loadDemoData();
+    initApp();
+    return;
+  }
+ doLogin();
+}
 
