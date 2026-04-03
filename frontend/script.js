@@ -968,3 +968,40 @@ function openDealModal(productId) {
     </div>
   </div>`);
 }
+async function submitDeal(productId) {
+  const qty=document.getElementById('dm-qty').value;
+  const price=document.getElementById('dm-price').value;
+  if(!qty||!price) return showAlert('dm-alert','Enter quantity and price.','danger');
+  const p = state.products.find(pr=>pr.id===productId);
+  try {
+    const deal = await apiFetch('/deals', { method:'POST', body: JSON.stringify({
+      farmer_id: p.farmerId, farmer_name: p.farmerName,
+      product_id: productId, produce_name: p.name,
+      quantity_requested: qty+' '+p.unit,
+      offered_price_per_kg: Number(price),
+      message: document.getElementById('dm-msg').value
+    })});
+    state.deals.push(normDeal(deal));
+    closeModal();
+    showAlert('deal-alert','Offer sent successfully to the farmer!','success');
+  } catch(e) {
+    showAlert('dm-alert', e.message || 'Failed to send offer.', 'danger');
+  }
+}
+
+function renderMyDeals() {
+  const myD = state.deals.filter(d=>d.dealerId===state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>My Deals</h2></div>
+    ${myD.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🤝</div><p>No deals yet. Browse produce and send offers!</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Farmer</th><th>Qty Requested</th><th>Offered Price</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>${myD.map(d=>`<tr>
+        <td>${produceEmoji(d.product)} <strong>${d.product}</strong></td>
+        <td>${d.farmerName}</td><td>${d.quantity}</td><td>৳${d.price}/kg</td>
+        <td>${d.created}</td><td>${badge(d.status)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
+  `;
+}
