@@ -47,6 +47,35 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Rate limiter for auth routes; respond with JSON so front-end can parse it
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  handler: (req, res /*, next */) => {
+    // express-rate-limit default behaviour is to send plain text.
+    // We send a JSON object matching the API convention to avoid parsing
+    // errors on the frontend.
+    res.status(429).json({ success: false, error: 'Too many requests, please try again later.' });
+  }
+});
+
+// ─── DATABASE POOL ────────────────────────────────────────────────────────────
+const pool = mysql.createPool({
+  host:     process.env.DB_HOST     || 'localhost',
+  user:     process.env.DB_USER     || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME     || 'harvestlink_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  timezone: '+06:00',          // Bangladesh Standard Time
+});
+
+async function query(sql, params = []) {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
+}
+
+
 // ─── DATABASE CONNECTION ─────────────────────────────────
 const pool = mysql.createPool({
   host:     process.env.DB_HOST     || 'localhost',
