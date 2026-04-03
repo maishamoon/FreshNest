@@ -76,6 +76,21 @@ CREATE TABLE IF NOT EXISTS transport_requests (
   INDEX idx_status   (status)
 ) ENGINE=InnoDB;
 
+-- TABLE 4: PRODUCE CONDITIONS (Reference Table)
+CREATE TABLE IF NOT EXISTS produce_conditions (
+  id                INT AUTO_INCREMENT PRIMARY KEY,
+  produce_name      VARCHAR(100) NOT NULL UNIQUE,
+  category          ENUM('Fruit','Vegetable') NOT NULL,
+  emoji             VARCHAR(10) DEFAULT '🌿',
+  storage_temp      VARCHAR(30) DEFAULT '',
+  storage_humidity  VARCHAR(30) DEFAULT '',
+  fresh_days        INT DEFAULT 7,
+  harvest_months   VARCHAR(50) DEFAULT '',
+  storage_tips      TEXT,
+  INDEX idx_name    (produce_name),
+  INDEX idx_category (category)
+) ENGINE=InnoDB;
+
 -- ────────────────────────────────────────────────────────────
 --  DEALS
 -- ────────────────────────────────────────────────────────────
