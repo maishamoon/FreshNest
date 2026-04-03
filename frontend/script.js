@@ -393,3 +393,37 @@ function renderFarmerDashboard() {
   const myT = state.trans.filter(t=>t.farmerId===u.id);
   const myD = state.deals.filter(d=>d.farmerId===u.id);
   const pending = myD.filter(d=>d.status==='Pending').length;
+  document.getElementById('page-body').innerHTML = `
+    <div class="hero-banner">
+      <div class="inner">
+        <h2>Good day, ${u.name}! ${ROLE_CFG.farmer.icon}</h2>
+        <p>Track your harvest, manage storage conditions, and connect with logistics partners — all from one place.</p>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card green" data-icon="🌿"><div class="stat-value">${myP.length}</div><div class="stat-label">Listed Produce</div><div class="stat-sub">Items in market</div></div>
+      <div class="stat-card gold" data-icon="🚛"><div class="stat-value">${myT.length}</div><div class="stat-label">Transport Requests</div><div class="stat-sub">${myT.filter(t=>t.status==='Open').length} open</div></div>
+      <div class="stat-card forest" data-icon="🤝"><div class="stat-value">${myD.length}</div><div class="stat-label">Total Deals</div><div class="stat-sub">${myD.filter(d=>d.status==='Accepted').length} accepted</div></div>
+      <div class="stat-card sage" data-icon="🔔"><div class="stat-value">${pending}</div><div class="stat-label">Pending Offers</div><div class="stat-sub">Awaiting response</div></div>
+    </div>
+    ${pending>0?`<div class="alert alert-warning">⚠️ You have <strong>${pending} pending deal offer(s)</strong> from dealers waiting for your response.</div>`:''}
+    <div class="info-grid">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 Recent Produce</div></div>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Produce</th><th>Qty</th><th>Status</th><th>Fresh Days</th></tr></thead>
+          <tbody>${myP.length?myP.slice(-4).reverse().map(p=>`<tr><td>${p.emoji||'🌿'} <strong>${p.name}</strong></td><td>${p.quantity} ${p.unit}</td><td>${badge(p.status)}</td><td>${p.freshDays} days</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:#8FA8A0;padding:20px">No produce listed yet</td></tr>'}</tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🚛 Recent Transport</div></div>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Product</th><th>Route</th><th>Status</th></tr></thead>
+          <tbody>${myT.length?myT.slice(-4).reverse().map(t=>`<tr><td>${t.product}</td><td>${t.pickup}→${t.destination}</td><td>${badge(t.status)}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#8FA8A0;padding:20px">No requests yet</td></tr>'}</tbody>
+        </table></div>
+      </div>
+    </div>
+  `;
+}
