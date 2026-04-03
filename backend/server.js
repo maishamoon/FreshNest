@@ -181,6 +181,11 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     if (!name || !email || !password || !role)
       return res.status(400).json({ success: false, error: 'Name, email, password, and role are required.' });
 
+    const allowedRoles = ['farmer', 'transport', 'dealer'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Invalid role.' });
+    }
+
     // Check if user already exists
     const existingUsers = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
     if (existingUsers.length)
@@ -253,6 +258,7 @@ app.get('/api/users', auth(['admin']), async (req, res) => {
 app.get('/api/users/me', auth(), async (req, res) => {
   try {
     const [user] = await query('SELECT id, name, email, role, location, vehicle_type, created_at FROM users WHERE id = ?', [req.user.id]);
+    if (!user) return error(res, 'User not found.', 404);
     success(res, user);
   } catch (err) {
     error(res, 'Failed to fetch profile.', 500);
@@ -284,15 +290,15 @@ app.get('/api/produce', auth(), async (req, res) => {
 /** POST /api/produce — Farmer only */
 app.post('/api/produce', auth(['farmer']), async (req, res) => {
   try {
-    const { name, category, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips } = req.body;
+    const { name, category, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips, expected_price_per_kg } = req.body;
     if (!name || !quantity || !harvest_date || !location) return error(res, 'Required fields missing.');
 
     const [result] = await pool.execute(
       `INSERT INTO produce (farmer_id, farmer_name, name, category, quantity, unit, harvest_date, location,
-        storage_temp, storage_humidity, fresh_days, storage_tips, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')`,
+        storage_temp, storage_humidity, fresh_days, storage_tips, expected_price_per_kg, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')`,
       [req.user.id, req.user.name, name, category || 'Other', quantity, unit || 'kg',
-       harvest_date, location, storage_temp || '', storage_humidity || '', fresh_days || 0, storage_tips || '']
+       harvest_date, location, storage_temp || '', storage_humidity || '', fresh_days || 0, storage_tips || '', expected_price_per_kg || null]
     );
 
     const [newItem] = await query('SELECT * FROM produce WHERE id = ?', [result.insertId]);
@@ -358,12 +364,28 @@ app.get('/api/transport', auth(), async (req, res) => {
 app.post('/api/transport', auth(['farmer']), async (req, res) => {
   try {
     const { product_id, produce_name, pickup_location, destination, pickup_date, quantity, notes } = req.body;
-    if (!produce_name || !destination) return error(res, 'Produce and destination required.');
+    if (!destination) return error(res, 'Destination required.');
+
+    let canonicalProductId = product_id || null;
+    let canonicalProduceName = produce_name || '';
+    let canonicalPickup = pickup_location || '';
+
+    if (product_id) {
+      const [produce] = await query('SELECT id, name, location, farmer_id FROM produce WHERE id = ?', [product_id]);
+      if (!produce) return error(res, 'Product not found.', 404);
+      if (produce.farmer_id !== req.user.id) return error(res, 'Not your produce.', 403);
+      canonicalProductId = produce.id;
+      canonicalProduceName = produce.name;
+      canonicalPickup = pickup_location || produce.location || '';
+    }
+
+    if (!canonicalProduceName) return error(res, 'Produce required.');
+    if (!canonicalPickup) return error(res, 'Pickup location required.');
 
     const [result] = await pool.execute(
       `INSERT INTO transport_requests (farmer_id, farmer_name, product_id, produce_name, pickup_location, destination, pickup_date, quantity, notes, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open')`,
-      [req.user.id, req.user.name, product_id || null, produce_name, pickup_location || '', destination, pickup_date, quantity || '', notes || '']
+      [req.user.id, req.user.name, canonicalProductId, canonicalProduceName, canonicalPickup, destination, pickup_date, quantity || '', notes || '']
     );
 
     const [newItem] = await query('SELECT * FROM transport_requests WHERE id = ?', [result.insertId]);
@@ -449,8 +471,9 @@ app.get('/api/deals', auth(), async (req, res) => {
 app.post('/api/deals', auth(['dealer']), async (req, res) => {
   try {
     const { farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message } = req.body;
-    if (!farmer_id || !produce_name || !offered_price_per_kg) return error(res, 'Required fields missing.');
+    if (!offered_price_per_kg) return error(res, 'Required fields missing.');
     
+    let canonicalFarmerId = farmer_id;
     let canonicalFarmerName = farmer_name;
     let canonicalProduceName = produce_name;
     let canonicalProductId = product_id || null;
@@ -459,10 +482,15 @@ app.post('/api/deals', auth(['dealer']), async (req, res) => {
       const produce = await query('SELECT p.*, u.name as farmer_name FROM produce p LEFT JOIN users u ON p.farmer_id = u.id WHERE p.id = ?', [product_id]);
       if (!produce.length) return error(res, 'Product not found.', 404);
       if (produce[0].status !== 'Available') return error(res, 'Product is not available.');
+      if (farmer_id && produce[0].farmer_id !== farmer_id) {
+        return error(res, 'Farmer does not match product owner.', 400);
+      }
+      canonicalFarmerId = produce[0].farmer_id;
       canonicalFarmerName = produce[0].farmer_name;
       canonicalProduceName = produce[0].name;
-      canonicalProductId = product_id;
+      canonicalProductId = produce[0].id;
     } else {
+      if (!farmer_id || !produce_name) return error(res, 'Farmer and produce required.');
       const farmer = await query('SELECT name FROM users WHERE id = ? AND role = "farmer"', [farmer_id]);
       if (!farmer.length) return error(res, 'Farmer not found.', 404);
       canonicalFarmerName = farmer[0].name;
@@ -470,9 +498,16 @@ app.post('/api/deals', auth(['dealer']), async (req, res) => {
 
     const [result] = await pool.execute(
       `INSERT INTO deals (dealer_id, dealer_name, farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-      [req.user.id, req.user.name, farmer_id, canonicalFarmerName, canonicalProductId, canonicalProduceName, quantity_requested || '', offered_price_per_kg, message || '']
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
+      [req.user.id, req.user.name, canonicalFarmerId, canonicalFarmerName, canonicalProductId, canonicalProduceName, quantity_requested || '', offered_price_per_kg, message || '']
     );
+
+    if (canonicalProductId) {
+      await pool.execute(
+        'INSERT INTO price_history (product_id, dealer_id, offered_price_per_kg) VALUES (?, ?, ?)',
+        [canonicalProductId, req.user.id, offered_price_per_kg]
+      );
+    }
 
     const [newItem] = await query('SELECT * FROM deals WHERE id = ?', [result.insertId]);
     success(res, newItem, 201);
@@ -489,6 +524,7 @@ app.patch('/api/deals/:id', auth(['farmer', 'admin']), async (req, res) => {
 
     const item = await query('SELECT * FROM deals WHERE id = ?', [req.params.id]);
     if (!item.length) return error(res, 'Deal not found.', 404);
+    if (item[0].status !== 'Pending') return error(res, 'Deal already responded.', 400);
     if (req.user.role === 'farmer' && item[0].farmer_id !== req.user.id) return error(res, 'Not your deal.', 403);
 
     await query('UPDATE deals SET status = ?, responded_at = NOW() WHERE id = ?', [status, req.params.id]);
@@ -538,10 +574,10 @@ app.post('/api/failures', auth(['transport']), async (req, res) => {
 
     await connection.beginTransaction();
     
-    await connection.execute(
+    const [insertResult] = await connection.execute(
       `INSERT INTO delivery_failures (transporter_id, transporter_name, transport_request_id, produce_name, route, reason, notes, alternatives)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, req.user.name, transport_request_id, produce_name || '', route || '', reason, notes || '', JSON.stringify(alternatives || [])]
+      [req.user.id, req.user.name, transport_request_id, request.produce_name || '', `${request.pickup_location} -> ${request.destination}`, reason, notes || '', JSON.stringify(alternatives || [])]
     );
     
     await connection.execute(
@@ -551,7 +587,7 @@ app.post('/api/failures', auth(['transport']), async (req, res) => {
     
     await connection.commit();
     
-    const [newItem] = await connection.execute('SELECT * FROM delivery_failures WHERE id = ?', [connection.insertId]);
+    const [newItem] = await connection.execute('SELECT * FROM delivery_failures WHERE id = ?', [insertResult.insertId]);
     success(res, newItem[0], 201);
   } catch (err) {
     await connection.rollback();

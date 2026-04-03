@@ -58,16 +58,24 @@ const DEMO_MODE = window.DEMO_MODE_ENABLED === true || localStorage.getItem('dem
 const API_BASE = window.API_BASE || 'http://localhost:5000/api';
 
 function today() { return new Date().toISOString().slice(0,10); }
+function toId(value) { return value === null || value === undefined ? '' : String(value); }
+function isDemo() { return DEMO_MODE === true; }
 async function apiFetch(path, opts = {}) {
-   
   const headers = { 'Content-Type': 'application/json' };
-   
   if (state.token && state.token !== 'demo-token') headers['Authorization'] = 'Bearer ' + state.token;
-  const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  let res;
+  try {
+    res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  } catch (err) {
+    throw new Error('Network error. Please check your connection and try again.');
+  }
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = { error: text }; }
   if (!res.ok) {
+    if (res.status === 401 && state.token && state.token !== 'demo-token') {
+      handleAuthExpired(data.error || 'Session expired. Please sign in again.');
+    }
     if (DEMO_MODE && (path === '/auth/login' || path === '/auth/register')) {
       throw new Error('Demo mode: ' + (data.error || 'API unavailable'));
     }
@@ -76,27 +84,43 @@ async function apiFetch(path, opts = {}) {
   return data.data;
 }
 
+function handleAuthExpired(message) {
+  doLogout();
+  showAlert('auth-alert', message || 'Session expired. Please sign in again.', 'danger');
+}
+
 // ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
 
 
-function normUser(u)    { return { ...u, vehicle: u.vehicle_type || u.vehicle || '', joined: (u.created_at || u.joined || '').slice(0,10) }; }
+function normUser(u)    { return { ...u, id: toId(u.id), vehicle: u.vehicle_type || u.vehicle || '', joined: (u.created_at || u.joined || '').slice(0,10) }; }
 function normProduce(p) {
   const db = PRODUCE_DB[p.name] || {};
-  return { ...p, farmerId: p.farmer_id, farmerName: p.farmer_name,
+  return { ...p, id: toId(p.id), farmerId: toId(p.farmer_id || p.farmerId), farmerName: p.farmer_name || p.farmerName,
     harvestDate: p.harvest_date, temp: p.storage_temp||db.temp||'',
     humidity: p.storage_humidity||db.humidity||'', freshDays: p.fresh_days||db.freshDays||7,
     tips: p.storage_tips||db.tips||'', listed: (p.listed_at||'').slice(0,10),
-    emoji: p.emoji||db.emoji||'🌿', category: p.category||db.cat||'Other' };
+    emoji: p.emoji||db.emoji||'*', category: p.category||db.cat||'Other',
+    expectedPrice: p.expected_price_per_kg };
 }
 
-function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.farmer_name,
-    product: t.produce_name, productId: t.product_id, pickup: t.pickup_location,
-    date: t.pickup_date, assignedTo: t.assigned_to, transporterName: t.transporter_name,
-    created: (t.created_at||'').slice(0,10) }; }
+function normTrans(t)   { return { 
+    ...t, 
+    id: toId(t.id),
+    farmerId: toId(t.farmer_id || t.farmerId), 
+    farmerName: t.farmer_name || '-',
+    product: t.produce_name || '-', 
+    productId: toId(t.product_id || t.productId), 
+    pickup: t.pickup_location || '-',
+    date: t.pickup_date, 
+    assignedTo: toId(t.assigned_to || t.assignedTo), 
+    transporterName: t.transporter_name || '-',
+    created: (t.created_at||'').slice(0,10) 
+  }; }
     
-    function normDeal(d)    { return { ...d, dealerId: d.dealer_id, dealerName: d.dealer_name,
-    farmerId: d.farmer_id, farmerName: d.farmer_name, product: d.produce_name,
-    productId: d.product_id, quantity: d.quantity_requested, price: d.offered_price_per_kg,
+    function normDeal(d)    { return { ...d, id: toId(d.id), dealerId: toId(d.dealer_id || d.dealerId), dealerName: d.dealer_name || d.dealerName,
+    farmerId: toId(d.farmer_id || d.farmerId), farmerName: d.farmer_name || d.farmerName, product: d.produce_name || d.product,
+    productId: toId(d.product_id || d.productId), quantity: d.quantity_requested || d.quantity, 
+    expectedPrice: d.expected_price_per_kg, price: d.offered_price_per_kg,
     msg: d.message, created: (d.created_at||'').slice(0,10) }; }
 
     function normFail(f)    { 
@@ -108,34 +132,89 @@ function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.fa
       alts = f.alternatives;
     }
   } catch (e) { alts = []; }
-  return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
-    requestId: f.transport_request_id, product: f.produce_name,
+  return { ...f, id: toId(f.id), transporterId: toId(f.transporter_id || f.transporterId), transporterName: f.transporter_name || f.transporterName,
+    requestId: toId(f.transport_request_id || f.requestId), product: f.produce_name || f.product,
     alternatives: alts,
     reported: (f.reported_at||'').slice(0,10) }; }
     // ─── STATE ────────────────────────────────────────────────────────────────────
-let state = { user:null, token:null, users:[], products:[], trans:[], deals:[], failures:[], activeNav:null };
+let state = { user:null, token:null, users:[], products:[], trans:[], deals:[], failures:[], activeNav:null, retryAction:null };
+
+function setPageLoading(message = 'Loading data...') {
+  const body = document.getElementById('page-body');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="card">
+      <div class="empty-state">
+        <div class="empty-icon">â³</div>
+        <p>${message}</p>
+      </div>
+    </div>
+  `;
+}
+
+function setPageError(message = 'Unable to load data.', actionLabel = 'Retry') {
+  const body = document.getElementById('page-body');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="card">
+      <div class="empty-state">
+        <div class="empty-icon">âš ï¸</div>
+        <p>${message}</p>
+        ${state.retryAction ? `<button class="btn btn-primary" onclick="retryLastAction()">${actionLabel}</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function retryLastAction() {
+  if (typeof state.retryAction === 'function') {
+    const fn = state.retryAction;
+    state.retryAction = null;
+    fn();
+  }
+}
+
+function logMissingFields(entity, items, fields) {
+  const missing = items.filter(item => fields.some(f => item[f] === null || item[f] === undefined || item[f] === ''));
+  if (missing.length) {
+    console.warn(`[data] ${entity} missing fields`, { count: missing.length, fields });
+  }
+}
 
 async function loadAll() {
-  
-  try {
-    const [products, trans, deals, failures] = await Promise.all([
-      apiFetch('/produce').then(r => r.map(normProduce)),
-      apiFetch('/transport').then(r => r.map(normTrans)),
-      apiFetch('/deals').then(r => r.map(normDeal)),
-      apiFetch('/failures').then(r => r.map(normFail)),
-    ]);
+  const [products, trans, deals, failures] = await Promise.all([
+    apiFetch('/produce').then(r => r.map(normProduce)),
+    apiFetch('/transport').then(r => r.map(normTrans)),
+    apiFetch('/deals').then(r => r.map(normDeal)),
+    apiFetch('/failures').then(r => r.map(normFail)),
+  ]);
 
-     state.products = products;
-    state.trans    = trans;
-    state.deals    = deals;
-    state.failures = failures;
-    if (state.user.role === 'admin') {
-      state.users = await apiFetch('/users').then(r => r.map(normUser));
+  state.products = products;
+  state.trans    = trans;
+  state.deals    = deals;
+  state.failures = failures;
+  if (state.user.role === 'admin') {
+    state.users = await apiFetch('/users').then(r => r.map(normUser));
+  }
+
+  logMissingFields('users', state.users, ['id', 'email', 'role']);
+  logMissingFields('produce', state.products, ['id', 'farmerId', 'name']);
+  logMissingFields('transport', state.trans, ['id', 'farmerId', 'status']);
+  logMissingFields('deals', state.deals, ['id', 'dealerId', 'farmerId', 'status']);
+}
+
+async function refreshDataAndRender(navId) {
+  if (document.getElementById('page-body')) setPageLoading('Refreshing data...');
+  state.retryAction = () => refreshDataAndRender(navId);
+  try {
+    await loadAll();
+    if (navId) {
+      navigate(navId);
+    } else if (state.activeNav) {
+      navigate(state.activeNav);
     }
-  } 
-  
-  catch(e) {
-    console.error('loadAll error:', e);
+  } catch (err) {
+    setPageError(err.message || 'Unable to load data. Please try again.');
   }
 }
 
@@ -146,6 +225,11 @@ function showAlert(id, msg, type='info') {
   const el = document.getElementById(id);
   if(el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
   setTimeout(()=>{ if(el) el.innerHTML=''; }, 4000);
+}
+
+function handleApiError(err, alertId, fallbackMessage) {
+  const msg = (err && err.message) ? err.message : (fallbackMessage || 'Request failed.');
+  showAlert(alertId, msg, 'danger');
 }
 
 let sidebarOpen = false;
@@ -195,12 +279,16 @@ function loadDemoData() {
 }
 
 function quickLogin(email, pass) {
+  if (!isDemo()) {
+    showAlert('auth-alert','Demo mode is disabled. Please sign in with a real account.','danger');
+    return;
+  }
   document.getElementById('login-email').value = email;
   document.getElementById('login-pass').value = pass;
   const demoUser = SEED_USERS.find(u => u.email === email && u.password === pass);
   
   if (demoUser) {
-    state.user  = { ...demoUser, vehicle: demoUser.vehicle || '' };
+    state.user  = normUser(demoUser);
     state.token = 'demo-token';
     localStorage.setItem('hl_token', state.token);
     localStorage.setItem('hl_user', JSON.stringify(state.user));
@@ -223,7 +311,7 @@ async function doLogin() {
   if (DEMO_MODE) {
     const user = SEED_USERS.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
     if (user) {
-      state.user  = { ...user, vehicle: user.vehicle || '' };
+      state.user  = normUser(user);
       state.token = 'demo-token';
       localStorage.setItem('hl_token', state.token);
       localStorage.setItem('hl_user', JSON.stringify(state.user));
@@ -241,7 +329,7 @@ async function doLogin() {
     showAlert('auth-alert','Signing in...','info');
     const data = await apiFetch('/auth/login', { method:'POST', body: JSON.stringify({ email, password: pass }) });
     state.token = data.token;
-    state.user  = { ...data.user, vehicle: data.user.vehicle||'' };
+    state.user  = normUser(data.user);
     
     try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
     await loadAll();
@@ -310,30 +398,13 @@ async function doRegister() {
   try {
     showAlert('auth-alert','Registering...','info');
     const newUserData = await apiFetch('/auth/register', { method:'POST', body: JSON.stringify({ name, email, password: pass, role, location, vehicle }) });
-    const newUser = normUser(newUserData);
     showAlert('auth-alert','Registration successful! You can now sign in.','success');
     switchAuthTab('login');
     document.getElementById('login-email').value = email;
     setAuthBtnState('reg-btn', false);
-    if (state.user && state.user.role === 'admin' && state.token && state.token !== 'demo-token') {
-      state.users.push(newUser);
-      try {
-        const users = await apiFetch('/users');
-        state.users = users.map(normUser);
-      }
-       catch(err) {
-        console.warn('Could not refresh full admin users list:', err);
-      }
-      if (state.activeNav === 'users') renderAdminUsers();
-    }
   } 
   catch(e) {
     setAuthBtnState('reg-btn', false);
-    const emailExists = SEED_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
-    if (emailExists) {
-      showAlert('auth-alert','Email already registered.','danger');
-      return;
-    }
     showAlert('auth-alert', e.message || 'Registration failed. Try different email.', 'danger');
     switchAuthTab('login');
     document.getElementById('login-email').value = email;
@@ -346,6 +417,7 @@ function doLogout() {
   state.token = null;
   state.users = []; state.products = []; state.trans = []; state.deals = []; state.failures = [];
   state.activeNav = null;
+  state.retryAction = null;
   try { localStorage.removeItem('hl_token'); localStorage.removeItem('hl_user'); } catch(_){}
   document.getElementById('app').style.display='none';
   document.getElementById('auth-page').style.display='flex';
@@ -516,7 +588,7 @@ function renderMyProducts() {
             <td>${p.temp || ''}</td>
             <td>${p.freshDays || ''} days</td>
             <td>${badge(p.status)}</td>
-            <td><button class="btn btn-sm" style="background:#C0392B;color:white" onclick="removeProduct(${p.id})">Remove</button></td>
+            <td><button class="btn btn-sm" style="background:#C0392B;color:white" onclick=\"removeProduct('${p.id}')\">Remove</button></td>
           </tr>`).join('')}
           </tbody>
         </table>
@@ -557,6 +629,10 @@ openModal(`<div class="modal">
       <div class="form-group"><label class="form-label">Harvest Date</label><input class="form-control" type="date" id="ap-date" value="${today()}"></div>
         <div class="form-group"><label class="form-label">Storage Location</label><input class="form-control" id="ap-loc" placeholder="e.g. Rajshahi" value="${state.user.location||''}"></div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Asking Price (৳/kg) <span style="color:var(--slate);font-weight:400">(Optional — visible to dealers)</span></label>
+        <input class="form-control" id="ap-price" type="number" placeholder="e.g. 80">
+      </div>
       <button class="btn btn-primary btn-full" onclick="submitAddProduct()">Add to Listing</button>
     </div>
   </div>`);
@@ -577,59 +653,70 @@ async function submitAddProduct() {
   const unit=document.getElementById('ap-unit').value;
   const date=document.getElementById('ap-date').value;
   const loc=document.getElementById('ap-loc').value;
+  const price=document.getElementById('ap-price').value;
 
 if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','danger');
   const info = PRODUCE_DB[name]||{};
 
   try {
 
-    const item = await apiFetch('/produce', { method:'POST', body: JSON.stringify({
+    await apiFetch('/produce', { method:'POST', body: JSON.stringify({
       name, category: info.cat||'Other', quantity: Number(qty), unit,
       harvest_date: date, location: loc,
       storage_temp: info.temp||'', storage_humidity: info.humidity||'',
-      fresh_days: info.freshDays||0, storage_tips: info.tips||''
+      fresh_days: info.freshDays||0, storage_tips: info.tips||'',
+      expected_price_per_kg: price ? Number(price) : null
 
     })});
 
-    state.products.push(normProduce(item));
     closeModal();
-    renderMyProducts();
+    await refreshDataAndRender('products');
+    showAlert('prod-alert','Produce added successfully!','success');
   } catch(e) {
-    const newProduct = {
-      id:'prod'+Date.now(),
-      farmerId: state.user.id,
-      farmerName: state.user.name,
-      name,
-      category: info.cat||'Other',
-      quantity: Number(qty),
-      unit,
-      harvestDate: date,
-      location: loc,
-      status:'Available',
-      listed: today(),
-      temp: info.temp||'',
-      humidity: info.humidity||'',
-      freshDays: info.freshDays||7,
-      tips: info.tips||'',
-      emoji: info.emoji||'🌿'
-    };
-    state.products.push(newProduct);
-    SEED_PRODUCTS.push(newProduct);
-    closeModal();
-    renderMyProducts();
-    showAlert('prod-alert','Produce added locally!','success');
+    if (isDemo()) {
+      const newProduct = {
+        id:'prod'+Date.now(),
+        farmerId: state.user.id,
+        farmerName: state.user.name,
+        name,
+        category: info.cat||'Other',
+        quantity: Number(qty),
+        unit,
+        harvestDate: date,
+        location: loc,
+        status:'Available',
+        listed: today(),
+        temp: info.temp||'',
+        humidity: info.humidity||'',
+        freshDays: info.freshDays||7,
+        tips: info.tips||'',
+        emoji: info.emoji||'*',
+        expectedPrice: price ? Number(price) : null
+      };
+      state.products.push(newProduct);
+      SEED_PRODUCTS.push(newProduct);
+      closeModal();
+      renderMyProducts();
+      showAlert('prod-alert','Produce added locally!','success');
+      return;
+    }
+    handleApiError(e, 'add-prod-alert', 'Failed to add produce.');
   }
 }
 async function removeProduct(id) {
   try {
     await apiFetch('/produce/'+id, { method:'DELETE' });
-    state.products = state.products.filter(p=>String(p.id)!==String(id));
-    renderMyProducts();
+    await refreshDataAndRender('products');
+    showAlert('prod-alert','Produce removed.','success');
   } 
   catch(e) {
-    state.products = state.products.filter(p=>String(p.id)!==String(id));
-    renderMyProducts();
-    showAlert('prod-alert','Produce removed locally!','success');
+    if (isDemo()) {
+      state.products = state.products.filter(p=>String(p.id)!==String(id));
+      renderMyProducts();
+      showAlert('prod-alert','Produce removed locally!','success');
+      return;
+    }
+    handleApiError(e, 'prod-alert', 'Failed to remove produce.');
   }
 }
 
@@ -721,7 +808,7 @@ async function submitTransport() {
   const prod = state.products.find(p=>String(p.id)===String(prodId));
  
   try {
-    const item = await apiFetch('/transport', { method:'POST', body: JSON.stringify({
+    await apiFetch('/transport', { method:'POST', body: JSON.stringify({
       product_id: Number(prodId), produce_name: prod?.name,
       pickup_location: document.getElementById('at-pickup').value||prod?.location,
       destination: dest, pickup_date: document.getElementById('at-date').value,
@@ -729,44 +816,52 @@ async function submitTransport() {
       notes: document.getElementById('at-notes').value
     })});
 
-    state.trans.push(normTrans(item));
     closeModal();
-    renderTransportReqs();
+    await refreshDataAndRender('transport');
+    showAlert('trans-alert','Transport request submitted.','success');
 
   } 
   catch(e) {
-    const newTrans = {
-      id:'trans'+Date.now(),
-      farmerId: state.user.id,
-      farmerName: state.user.name,
-      product: prod?.name,
-      productId: prodId,
-      pickup: document.getElementById('at-pickup').value||prod?.location||'',
-      destination: dest,
-      date: document.getElementById('at-date').value,
-      quantity: document.getElementById('at-qty').value,
-      notes: document.getElementById('at-notes').value,
-      status: 'Open',
-      created: today()
-    };
-    state.trans.push(newTrans);
-    SEED_TRANS.push(newTrans);
-    closeModal();
-    renderTransportReqs();
-    showAlert('trans-alert','Transport request added locally!','success');
+    if (isDemo()) {
+      const newTrans = {
+        id:'trans'+Date.now(),
+        farmerId: state.user.id,
+        farmerName: state.user.name,
+        product: prod?.name,
+        productId: prodId,
+        pickup: document.getElementById('at-pickup').value||prod?.location||'',
+        destination: dest,
+        date: document.getElementById('at-date').value,
+        quantity: document.getElementById('at-qty').value,
+        notes: document.getElementById('at-notes').value,
+        status: 'Open',
+        created: today()
+      };
+      state.trans.push(newTrans);
+      SEED_TRANS.push(newTrans);
+      closeModal();
+      renderTransportReqs();
+      showAlert('trans-alert','Transport request added locally!','success');
+      return;
+    }
+    handleApiError(e, 'at-alert', 'Failed to submit transport request.');
   }
 }
  async function cancelTransport(id) {
 
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
-    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Cancelled'}:t);
-    renderTransportReqs();
+    await refreshDataAndRender('transport');
+    showAlert('trans-alert','Transport request cancelled.','success');
   } 
   catch(e) {
-    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Cancelled'}:t);
-    renderTransportReqs();
-    showAlert('trans-alert','Transport cancelled locally!','success');
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Cancelled'}:t);
+      renderTransportReqs();
+      showAlert('trans-alert','Transport cancelled locally!','success');
+      return;
+    }
+    handleApiError(e, 'trans-alert', 'Failed to cancel transport request.');
   }
 }
 
@@ -783,12 +878,15 @@ function renderFarmerDeals()
     <div class="card"><div class="card-body table-wrap">
     <table class="data-table">
 
-      <thead><tr><th>Dealer</th><th>Produce</th><th>Quantity</th><th>Offered Price</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Dealer</th><th>Produce</th><th>Quantity</th><th>Your Ask</th><th>Offered</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>${myD.map(d=>`<tr>
         <td><strong>${d.dealerName}</strong></td>
 
         <td>${produceEmoji(d.product)} ${d.product}</td>
-        <td>${d.quantity}</td><td>৳${d.price}/kg</td><td>${d.created}</td>
+        <td>${d.quantity}</td>
+        <td>${d.expectedPrice ? '৳'+d.expectedPrice+'/kg' : '—'}</td>
+        <td style="font-weight:600;color:${d.expectedPrice && d.price < d.expectedPrice ? 'var(--amber)' : 'var(--forest)'}">৳${d.price}/kg</td>
+        <td>${d.created}</td>
 
         <td>${badge(d.status)}</td>
         <td>${d.status==='Pending'?`
@@ -808,14 +906,16 @@ async function respondDeal(id, status)
   try 
   {
     await apiFetch('/deals/'+id, { method:'PATCH', body: JSON.stringify({ status }) });
-    state.deals = state.deals.map(d=>String(d.id)===String(id)?{...d,status}:d);
-    renderFarmerDeals();
-
+    await refreshDataAndRender('deals');
   } 
   catch(e) {
-    state.deals = state.deals.map(d=>String(d.id)===String(id)?{...d,status}:d);
-    renderFarmerDeals();
-    showAlert('deal-alert','Deal response saved locally!','success');
+    if (isDemo()) {
+      state.deals = state.deals.map(d=>String(d.id)===String(id)?{...d,status}:d);
+      renderFarmerDeals();
+      showAlert('deal-alert','Deal response saved locally!','success');
+      return;
+    }
+    handleApiError(e, 'deal-alert', 'Failed to respond to deal.');
   }
 }
 
@@ -927,12 +1027,16 @@ function renderBrowseRequests()
 async function acceptJob(id) {
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
-    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
-    renderBrowseRequests();
+    await refreshDataAndRender(state.activeNav || 'offers');
+    showAlert('offer-alert','Job accepted.','success');
   } catch(e) {
-    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
-    renderBrowseRequests();
-    showAlert('offer-alert','Job accepted locally!','success');
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+      renderBrowseRequests();
+      showAlert('offer-alert','Job accepted locally!','success');
+      return;
+    }
+    handleApiError(e, 'offer-alert', 'Failed to accept job.');
   }
 }
 
@@ -963,12 +1067,16 @@ function renderMyJobs()
 async function completeJob(id) {
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Completed' }) });
-    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
-    renderMyJobs();
+    await refreshDataAndRender(state.activeNav || 'myjobs');
+    showAlert('job-alert','Job completed.','success');
   } catch(e) {
-    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
-    renderMyJobs();
-    showAlert('job-alert','Job completed locally!','success');
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
+      renderMyJobs();
+      showAlert('job-alert','Job completed locally!','success');
+      return;
+    }
+    handleApiError(e, 'job-alert', 'Failed to complete job.');
   }
 }
 
@@ -1065,39 +1173,41 @@ async function submitFailure()
   const alts = ALTERNATIVES.filter(()=>Math.random()>.3).slice(0,4);
 
   try {
-    const fail = await apiFetch('/failures', { method:'POST', body: JSON.stringify({
+    await apiFetch('/failures', { method:'POST', body: JSON.stringify({
       transport_request_id: jobId, produce_name: job?.product,
-      route: `${job?.pickup} → ${job?.destination}`,
+      route: `${job?.pickup} -> ${job?.destination}`,
       reason, notes: document.getElementById('rf-notes').value, alternatives: alts
     })});
 
-    state.failures.push(normFail(fail));
-    state.trans = state.trans.map(t=>String(t.id)===String(jobId)?{...t,status:'Failed'}:t);
     closeModal();
-    renderFailures();
+    await refreshDataAndRender('failures');
+    showAlert('fail-alert','Failure report submitted.','success');
   }
    catch(e) {
-    const newFail = {
-      id:'fail'+Date.now(),
-      transporterId: state.user.id,
-      transporterName: state.user.name,
-      requestId: jobId,
-      product: job?.product,
-      route: `${job?.pickup} → ${job?.destination}`,
-      reason: reason,
-      notes: document.getElementById('rf-notes').value,
-      alternatives: alts,
-      reported: today()
-    };
-    state.failures.push(newFail);
-    state.trans = state.trans.map(t=>String(t.id)===String(jobId)?{...t,status:'Failed'}:t);
-    closeModal();
-    renderFailures();
-    showAlert('fail-alert','Failure report saved locally!','success');
+    if (isDemo()) {
+      const newFail = {
+        id:'fail'+Date.now(),
+        transporterId: state.user.id,
+        transporterName: state.user.name,
+        requestId: jobId,
+        product: job?.product,
+        route: `${job?.pickup} -> ${job?.destination}`,
+        reason: reason,
+        notes: document.getElementById('rf-notes').value,
+        alternatives: alts,
+        reported: today()
+      };
+      state.failures.push(newFail);
+      state.trans = state.trans.map(t=>String(t.id)===String(jobId)?{...t,status:'Failed'}:t);
+      closeModal();
+      renderFailures();
+      showAlert('fail-alert','Failure report saved locally!','success');
+      return;
+    }
+    handleApiError(e, 'rf-alert', 'Failed to report failure.');
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 //  DEALER PAGES
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -1106,8 +1216,8 @@ function renderDealerDashboard() {
   const u = state.user;
 
   const myD = state.deals.filter(d=>d.dealerId===u.id);
-
   const avail = state.products.filter(p=>p.status==='Available');
+  const avgPrice = myD.length > 0 ? (myD.reduce((sum, d) => sum + (d.price || 0), 0) / myD.length).toFixed(1) : 0;
 
   document.getElementById('page-body').innerHTML = `
     <div class="hero-banner" style="background:linear-gradient(135deg,#1A5276,#2471A3,#2980B9)">
@@ -1117,8 +1227,9 @@ function renderDealerDashboard() {
       <div class="stat-card green" data-icon="🛒"><div class="stat-value">${avail.length}</div><div class="stat-label">Available Items</div><div class="stat-sub">Ready to buy</div></div>
       <div class="stat-card gold" data-icon="🤝"><div class="stat-value">${myD.length}</div><div class="stat-label">Total Deals</div><div class="stat-sub">All time</div></div>
       <div class="stat-card forest" data-icon="✅"><div class="stat-value">${myD.filter(d=>d.status==='Accepted').length}</div><div class="stat-label">Accepted Deals</div><div class="stat-sub">Confirmed</div></div>
-      <div class="stat-card sage" data-icon="⏳"><div class="stat-value">${myD.filter(d=>d.status==='Pending').length}</div><div class="stat-label">Pending</div><div class="stat-sub">Awaiting farmer response</div></div>
+      <div class="stat-card sage" data-icon="💰"><div class="stat-value">৳${avgPrice}</div><div class="stat-label">Avg Offered</div><div class="stat-sub">Per kg average</div></div>
     </div>
+    ${myD.filter(d=>d.status==='Pending').length > 0 ? `<div class="alert alert-info">⏳ You have <strong>${myD.filter(d=>d.status==='Pending').length} pending offer(s)</strong> awaiting farmer response.</div>` : ''}
     <div class="card">
       <div class="card-header"><div class="card-title">🌟 Featured Produce</div><button class="btn btn-sm btn-primary" onclick="navigate('browse')">Browse All</button></div>
       <div class="produce-grid" style="padding:1.5rem;gap:1rem;">
@@ -1127,7 +1238,7 @@ function renderDealerDashboard() {
           <div class="produce-card" onclick="openDealModal('${p.id}')" style="cursor:pointer">
             <div class="produce-card-header" style="background:${p.category==='Fruit'?'linear-gradient(135deg,#FEF9E7,#FDEBD0)':'linear-gradient(135deg,#E9F7EF,#D5F5E3)'}">
               <span class="badge ${p.category==='Fruit'?'badge-gold':'badge-green'}" style="position:absolute;top:10px;left:12px">${p.category}</span>
-             
+              
               <span class="produce-emoji">${p.emoji||'🌿'}</span>
               <div class="produce-name">${p.name}</div>
               <div class="produce-meta">by ${p.farmerName} · ${p.location}</div>
@@ -1136,9 +1247,10 @@ function renderDealerDashboard() {
             
               <div class="produce-card-body">
               <div class="produce-info-row"><span class="produce-info-label">📦 Stock</span><span class="produce-info-val">${p.quantity} ${p.unit}</span></div>
+              ${p.expectedPrice ? `<div class="produce-info-row" style="background:var(--foam);padding:4px 6px;border-radius:4px"><span class="produce-info-label">💰 Ask</span><span class="produce-info-val" style="font-weight:600">৳${p.expectedPrice}/kg</span></div>` : ''}
               <div class="produce-info-row"><span class="produce-info-label">🗓️ Fresh for</span><span class="produce-info-val">${p.freshDays} days</span></div>
               <div style="margin-top:10px"><button class="btn btn-gold btn-full">Make Offer</button></div>
-           
+            
               </div>
           </div>
        
@@ -1187,8 +1299,9 @@ function filterProduce()
 }
 
 function produceCardDealer(p) 
-
 {
+
+  const priceDisplay = p.expectedPrice ? `<div class="produce-info-row" style="background:var(--ivory);padding:6px 8px;border-radius:4px;margin-top:4px"><span class="produce-info-label" style="color:var(--forest)">💰 Farmer's Ask</span><span class="produce-info-val" style="color:var(--forest);font-weight:600">৳${p.expectedPrice}/kg</span></div>` : '';
 
   return `<div class="produce-card">
 
@@ -1203,6 +1316,7 @@ function produceCardDealer(p)
     <div class="produce-card-body">
 
       <div class="produce-info-row"><span class="produce-info-label">📦 Available</span><span class="produce-info-val">${p.quantity} ${p.unit}</span></div>
+      ${priceDisplay}
       <div class="produce-info-row"><span class="produce-info-label">🌡️ Storage</span><span class="produce-info-val">${p.temp}</span></div>
       <div class="produce-info-row"><span class="produce-info-label">🗓️ Fresh for</span><span class="produce-info-val">${p.freshDays} days</span></div>
       <div class="produce-info-row"><span class="produce-info-label">📅 Harvested</span><span class="produce-info-val">${p.harvestDate}</span></div>
@@ -1255,7 +1369,7 @@ async function submitDeal(productId)
 
   try 
   {
-    const deal = await apiFetch('/deals', { method:'POST', body: JSON.stringify({
+    await apiFetch('/deals', { method:'POST', body: JSON.stringify({
       
       farmer_id: p.farmerId, farmer_name: p.farmerName,
       product_id: productId, produce_name: p.name,
@@ -1265,31 +1379,35 @@ async function submitDeal(productId)
 
     })});
 
-    state.deals.push(normDeal(deal));
     closeModal();
+    await refreshDataAndRender(state.activeNav || 'browse');
     showAlert('deal-alert','Offer sent successfully to the farmer!','success');
   }
   
   catch(e)
    {
-    const newDeal = {
-      id:'deal'+Date.now(),
-      dealerId: state.user.id,
-      dealerName: state.user.name,
-      farmerId: p.farmerId,
-      farmerName: p.farmerName,
-      product: p.name,
-      productId: productId,
-      quantity: qty+' '+p.unit,
-      price: Number(price),
-      msg: document.getElementById('dm-msg').value,
-      status: 'Pending',
-      created: today()
-    };
-    state.deals.push(newDeal);
-    SEED_DEALS.push(newDeal);
-    closeModal();
-    showAlert('deal-alert','Offer saved locally!','success');
+    if (isDemo()) {
+      const newDeal = {
+        id:'deal'+Date.now(),
+        dealerId: state.user.id,
+        dealerName: state.user.name,
+        farmerId: p.farmerId,
+        farmerName: p.farmerName,
+        product: p.name,
+        productId: productId,
+        quantity: qty+' '+p.unit,
+        price: Number(price),
+        msg: document.getElementById('dm-msg').value,
+        status: 'Pending',
+        created: today()
+      };
+      state.deals.push(newDeal);
+      SEED_DEALS.push(newDeal);
+      closeModal();
+      showAlert('deal-alert','Offer saved locally!','success');
+      return;
+    }
+    handleApiError(e, 'dm-alert', 'Failed to send offer.');
    }
 }
 
@@ -1304,11 +1422,13 @@ function renderMyDeals()
     <div class="card"><div class="card-body table-wrap">
 
     <table class="data-table">
-      <thead><tr><th>Produce</th><th>Farmer</th><th>Qty Requested</th><th>Offered Price</th><th>Date</th><th>Status</th></tr></thead>
+      <thead><tr><th>Produce</th><th>Farmer</th><th>Qty Requested</th><th>Farmer Ask</th><th>Your Offer</th><th>Date</th><th>Status</th></tr></thead>
       <tbody>${myD.map(d=>`<tr>
 
         <td>${produceEmoji(d.product)} <strong>${d.product}</strong></td>
-        <td>${d.farmerName}</td><td>${d.quantity}</td><td>৳${d.price}/kg</td>
+        <td>${d.farmerName}</td><td>${d.quantity}</td>
+        <td>${d.expectedPrice ? '৳'+d.expectedPrice+'/kg' : '—'}</td>
+        <td style="font-weight:600">৳${d.price}/kg</td>
         <td>${d.created}</td><td>${badge(d.status)}</td>
       </tr>`).join('')}</tbody>
 
@@ -1541,7 +1661,7 @@ document.getElementById('topbar-date') && (document.getElementById('topbar-date'
     if (!token || !userRaw) return;
 
     state.token = token;
-    state.user  = JSON.parse(userRaw);
+    state.user  = normUser(JSON.parse(userRaw));
 
     if (token === 'demo-token') {
       loadDemoData();
@@ -1549,8 +1669,9 @@ document.getElementById('topbar-date') && (document.getElementById('topbar-date'
       return;
     }
 
-    // Real token — validate and reload
+    // Real token -> validate and reload
     try {
+      showAlert('auth-alert','Restoring session...','info');
       const me = await apiFetch('/users/me');
       state.user = normUser(me);
       await loadAll();
@@ -1560,6 +1681,10 @@ document.getElementById('topbar-date') && (document.getElementById('topbar-date'
       localStorage.removeItem('hl_user');
       state.token = null;
       state.user  = null;
+      const msg = (err && err.message && err.message.toLowerCase().includes('network'))
+        ? 'Unable to reach server. Please sign in again when online.'
+        : 'Session expired. Please sign in again.';
+      showAlert('auth-alert', msg, 'danger');
     }
   } catch (e) {
     console.warn('restoreSession error', e);

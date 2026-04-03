@@ -31,6 +31,7 @@ const CREATE_TABLES = [
     storage_humidity   VARCHAR(30)  DEFAULT '',
     fresh_days         INT          DEFAULT 7,
     storage_tips       TEXT,
+    expected_price_per_kg DECIMAL(10,2) DEFAULT NULL,
     status             ENUM('Available','Reserved','Sold','Expired') NOT NULL DEFAULT 'Available',
     listed_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -78,6 +79,7 @@ const CREATE_TABLES = [
     status                ENUM('Pending','Accepted','Declined','Cancelled') NOT NULL DEFAULT 'Pending',
     created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     responded_at          DATETIME     DEFAULT NULL,
+    updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (dealer_id)  REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (farmer_id)  REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES produce(id) ON DELETE SET NULL,
@@ -97,9 +99,48 @@ const CREATE_TABLES = [
     notes                 TEXT,
     alternatives          JSON,
     reported_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (transporter_id)       REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (transport_request_id) REFERENCES transport_requests(id) ON DELETE CASCADE,
     INDEX idx_transporter (transporter_id)
+  ) ENGINE=InnoDB`,
+
+  `CREATE TABLE IF NOT EXISTS activity_logs (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT          DEFAULT NULL,
+    action      VARCHAR(200) NOT NULL,
+    entity_type VARCHAR(100) DEFAULT NULL,
+    entity_id   INT          DEFAULT NULL,
+    meta        JSON,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_user (user_id),
+    INDEX idx_entity (entity_type, entity_id)
+  ) ENGINE=InnoDB`,
+
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT          NOT NULL,
+    title       VARCHAR(200) NOT NULL,
+    body        TEXT,
+    is_read     TINYINT(1)   NOT NULL DEFAULT 0,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_read (user_id, is_read)
+  ) ENGINE=InnoDB`,
+
+  `CREATE TABLE IF NOT EXISTS price_history (
+    id                   INT AUTO_INCREMENT PRIMARY KEY,
+    product_id           INT          NOT NULL,
+    dealer_id            INT          NOT NULL,
+    offered_price_per_kg DECIMAL(10,2) NOT NULL,
+    created_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES produce(id) ON DELETE CASCADE,
+    FOREIGN KEY (dealer_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_product (product_id),
+    INDEX idx_dealer (dealer_id)
   ) ENGINE=InnoDB`
 ];
 
@@ -135,11 +176,29 @@ async function init() {
     connectionLimit: 5,
   });
 
+  async function ensureColumn(table, column, definition) {
+    const [rows] = await pool.execute(
+      `SELECT COUNT(*) AS cnt
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [process.env.DB_NAME || 'freshnest_db', table, column]
+    );
+    if (rows[0].cnt === 0) {
+      await pool.execute(`ALTER TABLE \`${table}\` ADD COLUMN ${definition}`);
+    }
+  }
+
   try {
     console.log('Creating tables...');
     for (const sql of CREATE_TABLES) {
       await pool.execute(sql);
     }
+
+    console.log('Applying safe migrations...');
+    await ensureColumn('produce', 'expected_price_per_kg', 'expected_price_per_kg DECIMAL(10,2) DEFAULT NULL');
+    await ensureColumn('deals', 'updated_at', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await ensureColumn('delivery_failures', 'created_at', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP');
+    await ensureColumn('delivery_failures', 'updated_at', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
 
     console.log('Seeding data...');
     for (const sql of SEED_DATA) {
