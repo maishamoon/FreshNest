@@ -1,5 +1,5 @@
 /**
- * HarvestLink BD — Backend API Server
+ * FreshNest — Backend API Server
  * Node.js + Express + MySQL
  * 
  * Routes:
@@ -64,11 +64,34 @@ const pool = mysql.createPool({
   host:     process.env.DB_HOST     || 'localhost',
   user:     process.env.DB_USER     || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME     || 'harvestlink_db',
+  database: process.env.DB_NAME     || 'freshnest_db',
   waitForConnections: true,
   connectionLimit: 10,
-  timezone: '+06:00',          // Bangladesh Standard Time
+  timezone: '+06:00',
 });
+
+async function initDatabase() {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const tempPool = mysql.createPool({
+    host:     process.env.DB_HOST     || 'localhost',
+    user:     process.env.DB_USER     || 'root',
+    password: process.env.DB_PASSWORD || '',
+    waitForConnections: true,
+    connectionLimit: 2,
+  });
+
+  try {
+    await tempPool.execute(`CREATE DATABASE IF NOT EXISTS freshnest_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await tempPool.end();
+    
+    const db = require('./db_init');
+    if (db && db.init) await db.init();
+  } catch (err) {
+    console.error('DB init error:', err.message);
+  }
+}
 
 async function query(sql, params = []) {
   const [rows] = await pool.execute(sql, params);
@@ -84,7 +107,7 @@ function auth(requiredRoles = []) {
     if (!header) return res.status(401).json({ error: 'No token provided.' });
     const token = header.split(' ')[1];
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'harvestlink_secret');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'freshnest_secret');
       req.user = decoded;
       if (requiredRoles.length && !requiredRoles.includes(req.user.role)) {
         return res.status(403).json({ error: 'Access denied for your role.' });
@@ -159,7 +182,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'harvestlink_secret',
+      process.env.JWT_SECRET || 'freshnest_secret',
       { expiresIn: '7d' }
     );
 
@@ -426,7 +449,7 @@ app.post('/api/failures', auth(['transport']), async (req, res) => {
 
 // ─── HEALTH ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString(), service: 'HarvestLink BD API' });
+  res.json({ status: 'OK', timestamp: new Date().toISOString(), service: 'FreshNest API' });
 });
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
@@ -441,9 +464,17 @@ app.use((err, req, res, next) => {
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`✅ HarvestLink BD API running on http://localhost:${PORT}`);
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+async function start() {
+  try {
+    await initDatabase();
+  } catch (e) {
+    console.log('Continuing without DB init...');
+  }
 
-module.exports = app;
+  app.listen(PORT, () => {
+    console.log(`✅ FreshNest API running on http://localhost:${PORT}`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
+
+start();
