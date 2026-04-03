@@ -247,3 +247,17 @@ const ROLE_CFG = {
     { id:'myjobs',    label:'My Jobs',             icon:'🗓️' },
     { id:'failures',  label:'Report Failure',      icon:'⚠️' },
   ]},
+  dealer:    { color:'#2471A3', bg:'#1A5276', icon:'🏪', navItems: [
+    { id:'dashboard', label:'Dashboard',           icon:'📊' },
+    { id:'browse',    label:'Browse Produce',      icon:'🛒' },
+    { id:'mydeals',   label:'My Deals',            icon:'🤝' },
+  ]},
+  admin:     { color:'#8E44AD', bg:'#6C3483', icon:'⚙️', navItems: [
+    { id:'dashboard', label:'Overview',            icon:'📊' },
+    { id:'users',     label:'All Users',           icon:'👥' },
+    { id:'products',  label:'All Produce',         icon:'🌿' },
+    { id:'transport', label:'Transport',           icon:'🚛' },
+    { id:'deals',     label:'Deals',               icon:'🤝' },
+    { id:'failures',  label:'Failures',            icon:'⚠️' },
+  ]},
+};
