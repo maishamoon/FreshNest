@@ -195,3 +195,22 @@ app.get('/api/users/me', auth(), async (req, res) => {
     error(res, 'Failed to fetch profile.', 500);
   }
 });
+
+// ─── PRODUCE ROUTES ───────────────────────────────────────────────────────────
+
+/** GET /api/produce — All available (dealers/admin) or own (farmers) */
+app.get('/api/produce', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'farmer') {
+      rows = await query('SELECT * FROM produce WHERE farmer_id = ? ORDER BY listed_at DESC', [req.user.id]);
+    } else if (req.user.role === 'dealer') {
+      rows = await query("SELECT * FROM produce WHERE status = 'Available' ORDER BY listed_at DESC");
+    } else {
+      rows = await query('SELECT * FROM produce ORDER BY listed_at DESC');
+    }
+    success(res, rows);
+  } catch (err) {
+    error(res, 'Failed to fetch produce.', 500);
+  }
+});
