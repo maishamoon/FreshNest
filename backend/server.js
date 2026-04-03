@@ -385,3 +385,20 @@ app.patch('/api/deals/:id', auth(['farmer', 'admin']), async (req, res) => {
     error(res, 'Failed to update deal.', 500);
   }
 });
+
+// ─── FAILURES ROUTES ─────────────────────────────────────────────────────────
+
+/** GET /api/failures */
+app.get('/api/failures', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'transport') {
+      rows = await query('SELECT * FROM delivery_failures WHERE transporter_id = ? ORDER BY reported_at DESC', [req.user.id]);
+    } else {
+      rows = await query('SELECT * FROM delivery_failures ORDER BY reported_at DESC');
+    }
+    success(res, rows);
+  } catch (err) {
+    error(res, 'Failed to fetch failures.', 500);
+  }
+});
