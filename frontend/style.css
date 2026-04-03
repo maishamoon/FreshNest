@@ -172,3 +172,38 @@
   color: var(--green);
   box-shadow: var(--shadow-sm);
 }
+.demo-chips {
+  background: var(--foam);
+  border: 1px solid var(--mint);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+
+.demo-chips p {
+  font-size: .78rem;
+  color: var(--slate);
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.demo-chip {
+  display: inline-block;
+  background: var(--white);
+  border: 1px solid var(--mint);
+  border-radius: 20px;
+  padding: 4px 11px;
+  font-size: .77rem;
+  color: var(--green);
+  font-weight: 600;
+  margin: 3px;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.demo-chip:hover {
+  background: var(--green);
+  color: var(--white);
+}
