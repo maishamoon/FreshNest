@@ -31,6 +31,31 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProduction = process.env.NODE_ENV === 'production';
+  const weakSecrets = ['freshnest_secret', 'secret', 'password', '123456', 'default'];
+  
+  if (!secret) {
+    if (isProduction) {
+      throw new Error('JWT_SECRET is required in production environment!');
+    }
+    console.warn('⚠️  WARNING: Using temporary JWT_SECRET. Set JWT_SECRET in .env for production!');
+    return 'dev_temp_secret_do_not_use_in_prod_' + Date.now();
+  }
+  
+  if (weakSecrets.includes(secret.toLowerCase())) {
+    if (isProduction) {
+      throw new Error('JWT_SECRET is too weak for production! Use a strong, unique secret.');
+    }
+    console.warn('⚠️  WARNING: JWT_SECRET is weak. This is OK for development only.');
+  }
+  
+  return secret;
+}
+
+const JWT_SECRET = getJwtSecret();
+
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 app.use(cors({
   origin: function(origin, callback) {
@@ -74,6 +99,7 @@ async function initDatabase() {
   const fs = require('fs');
   const path = require('path');
   
+  const dbName = process.env.DB_NAME || 'freshnest_db';
   const tempPool = mysql.createPool({
     host:     process.env.DB_HOST     || 'localhost',
     user:     process.env.DB_USER     || 'root',
@@ -83,9 +109,10 @@ async function initDatabase() {
   });
 
   try {
-    await tempPool.execute(`CREATE DATABASE IF NOT EXISTS freshnest_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await tempPool.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
     await tempPool.end();
     
+    process.env.DB_NAME = dbName;
     const db = require('./db_init');
     if (db && db.init) await db.init();
   } catch (err) {
@@ -104,17 +131,17 @@ async function query(sql, params = []) {
 function auth(requiredRoles = []) {
   return (req, res, next) => {
     const header = req.headers['authorization'];
-    if (!header) return res.status(401).json({ error: 'No token provided.' });
+    if (!header) return res.status(401).json({ success: false, error: 'No token provided.' });
     const token = header.split(' ')[1];
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'freshnest_secret');
+      const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
       if (requiredRoles.length && !requiredRoles.includes(req.user.role)) {
-        return res.status(403).json({ error: 'Access denied for your role.' });
+        return res.status(403).json({ success: false, error: 'Access denied for your role.' });
       }
       next();
     } catch {
-      return res.status(401).json({ error: 'Invalid or expired token.' });
+      return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
     }
   };
 }
@@ -127,13 +154,27 @@ function error(res, msg, status = 400) {
   return res.status(status).json({ success: false, error: msg });
 }
 
+// ─── INPUT VALIDATION ────────────────────────────────────────────────────────────
+function validateEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
+function validateRequired(obj, fields) {
+  const missing = [];
+  for (const field of fields) {
+    if (!obj[field]) missing.push(field);
+  }
+  return missing;
+}
+
 // ─── AUTH ROUTES ─────────────────────────────────────────────────────────────
 
 /**
  * POST /api/auth/register
  * Body: { name, email, password, role, location?, vehicle? }
  */
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { name, email, password, role, location, vehicle } = req.body;
 
@@ -168,7 +209,7 @@ app.post('/api/auth/register', async (req, res) => {
  * POST /api/auth/login
  * Body: { email, password }
  */
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return error(res, 'Email and password required.');
@@ -182,7 +223,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'freshnest_secret',
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -280,6 +321,14 @@ app.patch('/api/produce/:id/status', auth(['farmer', 'admin']), async (req, res)
   try {
     const { status } = req.body;
     if (!['Available', 'Sold', 'Reserved'].includes(status)) return error(res, 'Invalid status.');
+    
+    const item = await query('SELECT * FROM produce WHERE id = ?', [req.params.id]);
+    if (!item.length) return error(res, 'Produce not found.', 404);
+    
+    if (req.user.role === 'farmer' && item[0].farmer_id !== req.user.id) {
+      return error(res, 'Not your produce.', 403);
+    }
+    
     await query('UPDATE produce SET status = ? WHERE id = ?', [status, req.params.id]);
     success(res, { message: 'Status updated.' });
   } catch (err) {
@@ -334,17 +383,40 @@ app.patch('/api/transport/:id', auth(['farmer', 'transport', 'admin']), async (r
     const item = await query('SELECT * FROM transport_requests WHERE id = ?', [req.params.id]);
     if (!item.length) return error(res, 'Request not found.', 404);
 
+    const currentStatus = item[0].status;
+    const isAdmin = req.user.role === 'admin';
+    const isFarmer = req.user.role === 'farmer';
+    const isTransport = req.user.role === 'transport';
+    const isFarmOwner = item[0].farmer_id === req.user.id;
+    const isAssigned = item[0].assigned_to === req.user.id;
+
+    if (isTransport && status === 'Accepted') {
+      if (currentStatus !== 'Open') return error(res, 'Can only accept Open requests.');
+    } else if (isTransport && (status === 'Completed' || status === 'Failed')) {
+      if (!isAssigned) return error(res, 'Only assigned transporter can complete this request.');
+      if (currentStatus !== 'Accepted') return error(res, 'Can only complete Accepted requests.');
+    } else if (isFarmer && status === 'Cancelled') {
+      if (!isFarmOwner) return error(res, 'Not your request.', 403);
+      if (currentStatus === 'Completed' || currentStatus === 'Failed') return error(res, 'Cannot cancel completed requests.');
+    } else if (!isAdmin && !isFarmer && !isTransport) {
+      return error(res, 'Unauthorized role for this action.', 403);
+    }
+
     let sql, params;
-    if (status === 'Accepted' && req.user.role === 'transport') {
+    if (status === 'Accepted' && isTransport) {
       sql = 'UPDATE transport_requests SET status = ?, assigned_to = ?, transporter_name = ? WHERE id = ?';
       params = [status, req.user.id, req.user.name, req.params.id];
-    } else if (status === 'Cancelled' && req.user.role === 'farmer') {
-      if (item[0].farmer_id !== req.user.id) return error(res, 'Not your request.', 403);
+    } else if (status === 'Cancelled' && isFarmer) {
+      sql = 'UPDATE transport_requests SET status = ? WHERE id = ?';
+      params = [status, req.params.id];
+    } else if (isAdmin) {
+      sql = 'UPDATE transport_requests SET status = ? WHERE id = ?';
+      params = [status, req.params.id];
+    } else if (isTransport && isAssigned) {
       sql = 'UPDATE transport_requests SET status = ? WHERE id = ?';
       params = [status, req.params.id];
     } else {
-      sql = 'UPDATE transport_requests SET status = ? WHERE id = ?';
-      params = [status, req.params.id];
+      return error(res, 'Unauthorized to update this request.', 403);
     }
 
     await pool.execute(sql, params);
@@ -378,11 +450,28 @@ app.post('/api/deals', auth(['dealer']), async (req, res) => {
   try {
     const { farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message } = req.body;
     if (!farmer_id || !produce_name || !offered_price_per_kg) return error(res, 'Required fields missing.');
+    
+    let canonicalFarmerName = farmer_name;
+    let canonicalProduceName = produce_name;
+    let canonicalProductId = product_id || null;
+    
+    if (product_id) {
+      const produce = await query('SELECT p.*, u.name as farmer_name FROM produce p LEFT JOIN users u ON p.farmer_id = u.id WHERE p.id = ?', [product_id]);
+      if (!produce.length) return error(res, 'Product not found.', 404);
+      if (produce[0].status !== 'Available') return error(res, 'Product is not available.');
+      canonicalFarmerName = produce[0].farmer_name;
+      canonicalProduceName = produce[0].name;
+      canonicalProductId = product_id;
+    } else {
+      const farmer = await query('SELECT name FROM users WHERE id = ? AND role = "farmer"', [farmer_id]);
+      if (!farmer.length) return error(res, 'Farmer not found.', 404);
+      canonicalFarmerName = farmer[0].name;
+    }
 
     const [result] = await pool.execute(
       `INSERT INTO deals (dealer_id, dealer_name, farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-      [req.user.id, req.user.name, farmer_id, farmer_name, product_id || null, produce_name, quantity_requested || '', offered_price_per_kg, message || '']
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
+      [req.user.id, req.user.name, farmer_id, canonicalFarmerName, canonicalProductId, canonicalProduceName, quantity_requested || '', offered_price_per_kg, message || '']
     );
 
     const [newItem] = await query('SELECT * FROM deals WHERE id = ?', [result.insertId]);
@@ -428,39 +517,64 @@ app.get('/api/failures', auth(), async (req, res) => {
 
 /** POST /api/failures — Transport only */
 app.post('/api/failures', auth(['transport']), async (req, res) => {
+  const connection = await pool.getConnection();
   try {
     const { transport_request_id, produce_name, route, reason, notes, alternatives } = req.body;
     if (!transport_request_id || !reason) return error(res, 'Request ID and reason required.');
 
-    const [result] = await pool.execute(
+    const [requests] = await connection.execute(
+      'SELECT * FROM transport_requests WHERE id = ?',
+      [transport_request_id]
+    );
+    if (!requests.length) return error(res, 'Transport request not found.', 404);
+    
+    const request = requests[0];
+    if (request.assigned_to !== req.user.id) {
+      return error(res, 'You are not assigned to this request.', 403);
+    }
+    if (request.status !== 'Accepted') {
+      return error(res, 'Can only report failure for Accepted requests.', 400);
+    }
+
+    await connection.beginTransaction();
+    
+    await connection.execute(
       `INSERT INTO delivery_failures (transporter_id, transporter_name, transport_request_id, produce_name, route, reason, notes, alternatives)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.user.id, req.user.name, transport_request_id, produce_name || '', route || '', reason, notes || '', JSON.stringify(alternatives || [])]
     );
-// Mark transport request as failed
-    await query("UPDATE transport_requests SET status = 'Failed' WHERE id = ?", [transport_request_id]);
-
-    const [newItem] = await query('SELECT * FROM delivery_failures WHERE id = ?', [result.insertId]);
-    success(res, newItem, 201);
+    
+    await connection.execute(
+      "UPDATE transport_requests SET status = 'Failed' WHERE id = ?",
+      [transport_request_id]
+    );
+    
+    await connection.commit();
+    
+    const [newItem] = await connection.execute('SELECT * FROM delivery_failures WHERE id = ?', [connection.insertId]);
+    success(res, newItem[0], 201);
   } catch (err) {
+    await connection.rollback();
     error(res, 'Failed to report failure.', 500);
+  } finally {
+    connection.release();
   }
 });
 
 // ─── HEALTH ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString(), service: 'FreshNest API' });
+  res.json({ success: true, data: { status: 'OK', timestamp: new Date().toISOString(), service: 'FreshNest API' } });
 });
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
+  res.status(404).json({ success: false, error: `Route ${req.method} ${req.path} not found.` });
 });
 
 // ─── ERROR HANDLER ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('[Error]', err.message);
-  res.status(500).json({ error: 'Internal server error.' });
+  res.status(500).json({ success: false, error: 'Internal server error.' });
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────

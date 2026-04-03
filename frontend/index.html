@@ -47,7 +47,7 @@
           <label class="form-label">Password</label>
           <input class="form-control" type="password" id="login-pass" placeholder="••••••••">
         </div>
-        <button class="btn btn-primary btn-full" onclick="doLogin()" style="margin-top:6px;">Sign In →</button>
+        <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()" style="margin-top:6px;">Sign In →</button>
         <div class="demo-chips">
           <p>Demo Login (No account needed)</p>
           <span class="demo-chip" style="background:var(--green);color:white" onclick="quickLogin('admin@harvest.bd','admin123')">⚙️ Admin</span>
@@ -90,7 +90,7 @@
           <label class="form-label">Vehicle Type</label>
           <input class="form-control" id="reg-vehicle" placeholder="e.g. Refrigerated Truck">
         </div>
-        <button class="btn btn-gold btn-full" onclick="doRegister()">Create Account</button>
+        <button class="btn btn-gold btn-full" id="reg-btn" onclick="doRegister()">Create Account</button>
       </div>
     </div>
   </div>
@@ -117,6 +117,7 @@
   </aside>
 
   <div class="main-content">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
     <div class="topbar">
       <div class="topbar-title" id="topbar-title">Dashboard</div>
       <div class="topbar-right">

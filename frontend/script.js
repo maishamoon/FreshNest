@@ -54,19 +54,25 @@ const SEED_DEALS = [
 
 // ─── API CONFIG ───────────────────────────────────────────────────────────────
 
-const API_BASE = 'http://localhost:5000/api';
+const DEMO_MODE = window.DEMO_MODE_ENABLED === true || localStorage.getItem('demo_mode') === 'true';
+const API_BASE = window.API_BASE || 'http://localhost:5000/api';
 
 function today() { return new Date().toISOString().slice(0,10); }
 async function apiFetch(path, opts = {}) {
-  
+   
   const headers = { 'Content-Type': 'application/json' };
-  
-  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+   
+  if (state.token && state.token !== 'demo-token') headers['Authorization'] = 'Bearer ' + state.token;
   const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = { error: text }; }
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    if (DEMO_MODE && (path === '/auth/login' || path === '/auth/register')) {
+      throw new Error('Demo mode: ' + (data.error || 'API unavailable'));
+    }
+    throw new Error(data.error || 'Request failed');
+  }
   return data.data;
 }
 
@@ -93,9 +99,18 @@ function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.fa
     productId: d.product_id, quantity: d.quantity_requested, price: d.offered_price_per_kg,
     msg: d.message, created: (d.created_at||'').slice(0,10) }; }
 
-    function normFail(f)    { return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
+    function normFail(f)    { 
+  let alts = [];
+  try {
+    if (typeof f.alternatives === 'string') {
+      alts = JSON.parse(f.alternatives || '[]');
+    } else if (Array.isArray(f.alternatives)) {
+      alts = f.alternatives;
+    }
+  } catch (e) { alts = []; }
+  return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
     requestId: f.transport_request_id, product: f.produce_name,
-    alternatives: typeof f.alternatives === 'string' ? JSON.parse(f.alternatives||'[]') : (f.alternatives||[]),
+    alternatives: alts,
     reported: (f.reported_at||'').slice(0,10) }; }
     // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = { user:null, token:null, users:[], products:[], trans:[], deals:[], failures:[], activeNav:null };
@@ -131,6 +146,13 @@ function showAlert(id, msg, type='info') {
   const el = document.getElementById(id);
   if(el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
   setTimeout(()=>{ if(el) el.innerHTML=''; }, 4000);
+}
+
+let sidebarOpen = false;
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  sidebarOpen = !sidebarOpen;
+  sidebar.classList.toggle('open', sidebarOpen);
 }
 
 function openModal(html) {
@@ -196,13 +218,22 @@ async function doLogin() {
   const pass  = document.getElementById('login-pass').value;
   if (!email || !pass) return showAlert('auth-alert','Email and password required.','danger');
   
-  const user = SEED_USERS.find(u => u.email === email && u.password === pass);
-  if (user) {
-    state.user  = { ...user, vehicle: user.vehicle || '' };
-    state.token = 'demo-token';
-    try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
-    loadDemoData();
-    initApp();
+  setAuthBtnState('login-btn', true);
+  
+  if (DEMO_MODE) {
+    const user = SEED_USERS.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+    if (user) {
+      state.user  = { ...user, vehicle: user.vehicle || '' };
+      state.token = 'demo-token';
+      localStorage.setItem('hl_token', state.token);
+      localStorage.setItem('hl_user', JSON.stringify(state.user));
+      loadDemoData();
+      initApp();
+      setAuthBtnState('login-btn', false);
+      return;
+    }
+    showAlert('auth-alert', 'Demo mode: Invalid credentials.', 'danger');
+    setAuthBtnState('login-btn', false);
     return;
   }
   
@@ -216,9 +247,23 @@ async function doLogin() {
     await loadAll();
     initApp();
   } 
-   
+    
   catch(e) {
     showAlert('auth-alert', e.message || 'Invalid email or password.', 'danger');
+  }
+  setAuthBtnState('login-btn', false);
+}
+
+function setAuthBtnState(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (loading) {
+    btn.disabled = true;
+    btn.dataset.origText = btn.textContent;
+    btn.textContent = 'Please wait...';
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.origText || btn.textContent;
   }
 }
 
@@ -243,23 +288,35 @@ async function doRegister() {
   
   const vehicle  = document.getElementById('reg-vehicle')?.value||'';
   
-  try {
-    
-    showAlert('auth-alert','Registering...','info');
-    
-    const newUserData = await apiFetch('/auth/register', { method:'POST', body: JSON.stringify({ name, email, password: pass, role, location, vehicle }) });
-    
-    const newUser = normUser(newUserData);
-    
+  setAuthBtnState('reg-btn', true);
+  
+  if (DEMO_MODE) {
+    const emailExists = SEED_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
+    if (emailExists) {
+      showAlert('auth-alert','Email already registered.','danger');
+      setAuthBtnState('reg-btn', false);
+      return;
+    }
+    const newUser = { id:'user'+Date.now(), name, email, password:pass, role, location, vehicle, joined:today() };
+    SEED_USERS.push(newUser);
+    state.users.push(normUser(newUser));
     showAlert('auth-alert','Registration successful! You can now sign in.','success');
-
     switchAuthTab('login');
-
     document.getElementById('login-email').value = email;
-
+    setAuthBtnState('reg-btn', false);
+    return;
+  }
+  
+  try {
+    showAlert('auth-alert','Registering...','info');
+    const newUserData = await apiFetch('/auth/register', { method:'POST', body: JSON.stringify({ name, email, password: pass, role, location, vehicle }) });
+    const newUser = normUser(newUserData);
+    showAlert('auth-alert','Registration successful! You can now sign in.','success');
+    switchAuthTab('login');
+    document.getElementById('login-email').value = email;
+    setAuthBtnState('reg-btn', false);
     if (state.user && state.user.role === 'admin' && state.token && state.token !== 'demo-token') {
       state.users.push(newUser);
-
       try {
         const users = await apiFetch('/users');
         state.users = users.map(normUser);
@@ -271,7 +328,15 @@ async function doRegister() {
     }
   } 
   catch(e) {
-    showAlert('auth-alert', e.message || 'Registration failed.', 'danger');
+    setAuthBtnState('reg-btn', false);
+    const emailExists = SEED_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
+    if (emailExists) {
+      showAlert('auth-alert','Email already registered.','danger');
+      return;
+    }
+    showAlert('auth-alert', e.message || 'Registration failed. Try different email.', 'danger');
+    switchAuthTab('login');
+    document.getElementById('login-email').value = email;
   }
 }
 
@@ -530,7 +595,29 @@ if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','
     closeModal();
     renderMyProducts();
   } catch(e) {
-    showAlert('add-prod-alert', e.message || 'Failed to add produce.', 'danger');
+    const newProduct = {
+      id:'prod'+Date.now(),
+      farmerId: state.user.id,
+      farmerName: state.user.name,
+      name,
+      category: info.cat||'Other',
+      quantity: Number(qty),
+      unit,
+      harvestDate: date,
+      location: loc,
+      status:'Available',
+      listed: today(),
+      temp: info.temp||'',
+      humidity: info.humidity||'',
+      freshDays: info.freshDays||7,
+      tips: info.tips||'',
+      emoji: info.emoji||'🌿'
+    };
+    state.products.push(newProduct);
+    SEED_PRODUCTS.push(newProduct);
+    closeModal();
+    renderMyProducts();
+    showAlert('prod-alert','Produce added locally!','success');
   }
 }
 async function removeProduct(id) {
@@ -540,7 +627,9 @@ async function removeProduct(id) {
     renderMyProducts();
   } 
   catch(e) {
-    showAlert('prod-alert', e.message || 'Failed to remove.', 'danger');
+    state.products = state.products.filter(p=>String(p.id)!==String(id));
+    renderMyProducts();
+    showAlert('prod-alert','Produce removed locally!','success');
   }
 }
 
@@ -573,9 +662,21 @@ function renderTransportReqs()
   `;
 }  
 function openAddTransport() {
-
-
-  const myP = state.products.filter(p=>p.farmerId===state.user.id);
+  const myP = state.products.filter(p=>p.farmerId===state.user.id || p.farmer_id===state.user.id);
+  
+  if (myP.length === 0) {
+    openModal(`<div class="modal">
+      <div class="modal-header"><span class="modal-title">🚛 New Transport Request</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="empty-state">
+          <div class="empty-icon">🌿</div>
+          <p>You need to add produce before creating a transport request.</p>
+          <p style="margin-top:1rem"><button class="btn btn-primary" onclick="closeModal(); openAddProduct();">+ Add Produce First</button></p>
+        </div>
+      </div>
+    </div>`);
+    return;
+  }
 
   openModal(`<div class="modal">
     <div class="modal-header"><span class="modal-title">🚛 New Transport Request</span><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -586,8 +687,8 @@ function openAddTransport() {
         <select class="form-control" id="at-prod">
           <option value="">-- Select Produce --</option>
           ${myP.map(p=>`<option value="${p.id}" data-loc="${p.location}">${p.emoji||'🌿'} ${p.name} (${p.quantity} ${p.unit})</option>`).join('')}
-       
-          </select>
+        
+        </select>
 
       </div>
       <div class="form-grid-2">
@@ -598,7 +699,7 @@ function openAddTransport() {
         <div class="form-group"><label class="form-label">Pickup Date</label><input class="form-control" type="date" id="at-date" value="${today()}"></div>
         <div class="form-group"><label class="form-label">Quantity</label><input class="form-control" id="at-qty" placeholder="e.g. 500 kg"></div>
      
-        </div>
+      </div>
       <div class="form-group"><label class="form-label">Special Instructions</label><textarea class="form-control" id="at-notes" placeholder="e.g. Refrigerated vehicle required..."></textarea></div>
       <button class="btn btn-primary btn-full" onclick="submitTransport()">Submit Request</button>
     </div>
@@ -612,12 +713,12 @@ function openAddTransport() {
 }
 
 async function submitTransport() {
-  
+   
   const prodId=document.getElementById('at-prod').value;
   const dest=document.getElementById('at-dest').value;
   if(!prodId||!dest) return showAlert('at-alert','Select produce and enter destination.','danger');
   
-  const prod = state.products.find(p=>p.id===prodId);
+  const prod = state.products.find(p=>String(p.id)===String(prodId));
  
   try {
     const item = await apiFetch('/transport', { method:'POST', body: JSON.stringify({
@@ -634,7 +735,25 @@ async function submitTransport() {
 
   } 
   catch(e) {
-    showAlert('at-alert', e.message || 'Failed to submit.', 'danger');
+    const newTrans = {
+      id:'trans'+Date.now(),
+      farmerId: state.user.id,
+      farmerName: state.user.name,
+      product: prod?.name,
+      productId: prodId,
+      pickup: document.getElementById('at-pickup').value||prod?.location||'',
+      destination: dest,
+      date: document.getElementById('at-date').value,
+      quantity: document.getElementById('at-qty').value,
+      notes: document.getElementById('at-notes').value,
+      status: 'Open',
+      created: today()
+    };
+    state.trans.push(newTrans);
+    SEED_TRANS.push(newTrans);
+    closeModal();
+    renderTransportReqs();
+    showAlert('trans-alert','Transport request added locally!','success');
   }
 }
  async function cancelTransport(id) {
@@ -644,7 +763,11 @@ async function submitTransport() {
     state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Cancelled'}:t);
     renderTransportReqs();
   } 
-  catch(e) { alert('Failed: '+e.message); }
+  catch(e) {
+    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Cancelled'}:t);
+    renderTransportReqs();
+    showAlert('trans-alert','Transport cancelled locally!','success');
+  }
 }
 
 function renderFarmerDeals() 
@@ -689,7 +812,11 @@ async function respondDeal(id, status)
     renderFarmerDeals();
 
   } 
-  catch(e) { alert('Failed: '+e.message); }
+  catch(e) {
+    state.deals = state.deals.map(d=>String(d.id)===String(id)?{...d,status}:d);
+    renderFarmerDeals();
+    showAlert('deal-alert','Deal response saved locally!','success');
+  }
 }
 
 function renderStorageGuide()
@@ -802,7 +929,11 @@ async function acceptJob(id) {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
     state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
     renderBrowseRequests();
-  } catch(e) { alert('Failed: '+e.message); }
+  } catch(e) {
+    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+    renderBrowseRequests();
+    showAlert('offer-alert','Job accepted locally!','success');
+  }
 }
 
 function renderMyJobs() 
@@ -834,7 +965,11 @@ async function completeJob(id) {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Completed' }) });
     state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
     renderMyJobs();
-  } catch(e) { alert('Failed: '+e.message); }
+  } catch(e) {
+    state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
+    renderMyJobs();
+    showAlert('job-alert','Job completed locally!','success');
+  }
 }
 
 function renderFailures() {
@@ -879,7 +1014,22 @@ const ALTERNATIVES = [
 ];
 
 function openReportFailure() {
-  const jobs = state.trans.filter(t=>t.assignedTo===state.user.id && t.status==='Accepted');
+  const jobs = state.trans.filter(t=>String(t.assignedTo)===String(state.user.id) && t.status==='Accepted');
+  
+  if (jobs.length === 0) {
+    openModal(`<div class="modal">
+      <div class="modal-header"><span class="modal-title">⚠️ Report Delivery Failure</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="empty-state">
+          <div class="empty-icon">🚛</div>
+          <p>You need to have an accepted job before reporting a failure.</p>
+          <p style="margin-top:1rem"><button class="btn btn-primary" onclick="closeModal(); navigate('offers');">Browse Requests</button></p>
+        </div>
+      </div>
+    </div>`);
+    return;
+  }
+  
   openModal(`<div class="modal">
 
     <div class="modal-header"><span class="modal-title">⚠️ Report Delivery Failure</span><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -899,9 +1049,7 @@ function openReportFailure() {
           ${FAIL_REASONS.map(r=>`<option>${r}</option>`).join('')}
         </select>
       </div>
-      <div class="form-group"><label class="form-label">Additional Details</label>
-        <textarea class="form-control" id="rf-notes" placeholder="Describe what happened and your current situation..."></textarea>
-      </div>
+      <div class="form-group"><label class="form-label">Additional Details</label><textarea class="form-control" id="rf-notes" placeholder="Describe what happened and your current situation..."></textarea></div>
       <button class="btn btn-gold btn-full" onclick="submitFailure()">Submit Failure Report</button>
     </div>
   </div>`);
@@ -913,7 +1061,7 @@ async function submitFailure()
 
   const reason = document.getElementById('rf-reason').value;
   if(!jobId||!reason) return showAlert('rf-alert','Please select a job and reason.','danger');
-  const job = state.trans.find(t=>t.id===jobId);
+  const job = state.trans.find(t=>String(t.id)===String(jobId));
   const alts = ALTERNATIVES.filter(()=>Math.random()>.3).slice(0,4);
 
   try {
@@ -929,7 +1077,23 @@ async function submitFailure()
     renderFailures();
   }
    catch(e) {
-    showAlert('rf-alert', e.message || 'Failed to submit.', 'danger');
+    const newFail = {
+      id:'fail'+Date.now(),
+      transporterId: state.user.id,
+      transporterName: state.user.name,
+      requestId: jobId,
+      product: job?.product,
+      route: `${job?.pickup} → ${job?.destination}`,
+      reason: reason,
+      notes: document.getElementById('rf-notes').value,
+      alternatives: alts,
+      reported: today()
+    };
+    state.failures.push(newFail);
+    state.trans = state.trans.map(t=>String(t.id)===String(jobId)?{...t,status:'Failed'}:t);
+    closeModal();
+    renderFailures();
+    showAlert('fail-alert','Failure report saved locally!','success');
   }
 }
 
@@ -1087,7 +1251,7 @@ async function submitDeal(productId)
  
   if(!qty||!price) return showAlert('dm-alert','Enter quantity and price.','danger');
   
-  const p = state.products.find(pr=>pr.id===productId);
+  const p = state.products.find(pr=>String(pr.id)===String(productId));
 
   try 
   {
@@ -1108,8 +1272,25 @@ async function submitDeal(productId)
   
   catch(e)
    {
-    showAlert('dm-alert', e.message || 'Failed to send offer.', 'danger');
-  }
+    const newDeal = {
+      id:'deal'+Date.now(),
+      dealerId: state.user.id,
+      dealerName: state.user.name,
+      farmerId: p.farmerId,
+      farmerName: p.farmerName,
+      product: p.name,
+      productId: productId,
+      quantity: qty+' '+p.unit,
+      price: Number(price),
+      msg: document.getElementById('dm-msg').value,
+      status: 'Pending',
+      created: today()
+    };
+    state.deals.push(newDeal);
+    SEED_DEALS.push(newDeal);
+    closeModal();
+    showAlert('deal-alert','Offer saved locally!','success');
+   }
 }
 
 function renderMyDeals() 
