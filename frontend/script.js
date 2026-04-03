@@ -68,3 +68,8 @@ async function apiFetch(path, opts = {}) {
   }
   return data.data;
 }
+/ ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
+function normUser(u)    { return { ...u, vehicle: u.vehicle_type||'', joined: (u.created_at||'').slice(0,10) }; }
+function normProduce(p) {
+  const db = PRODUCE_DB[p.name] || {};
+
