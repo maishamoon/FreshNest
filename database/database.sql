@@ -140,6 +140,20 @@ INSERT INTO produce_conditions (produce_name, category, emoji, storage_temp, sto
 ('Strawberry',   'Fruit', '🍓', '0–2°C',   '90–95%', 5,  'Dec–Feb',        'Handle with extreme care. Never wash before storage.'),
 ('Grape',        'Fruit', '🍇', '0–2°C',   '90–95%', 21, 'Dec–Mar',        'Store in original clusters. Avoid temperature fluctuation.'),
 
+-- Vegetables
+('Tomato',       'Vegetable', '🍅', '10–13°C', '85–90%', 10, 'Oct–Mar',    'Store stem-up. Never refrigerate fully ripe tomatoes.'),
+('Potato',       'Vegetable', '🥔', '4–7°C',   '85–90%', 60, 'Jan–Mar',    'Store in dark, dry, cool place. Avoid light to prevent greening.'),
+('Onion',        'Vegetable', '🧅', '0–4°C',   '65–70%', 90, 'Jan–Apr',    'Store dry with good airflow. Low humidity is critical.'),
+('Eggplant',     'Vegetable', '🍆', '10–12°C', '90–95%', 7,  'Year-round', 'Very chilling-sensitive. Keep away from ethylene.'),
+('Cucumber',     'Vegetable', '🥒', '10–13°C', '90–95%', 7,  'Year-round', 'Wrap individually. Ethylene sensitive; isolate from ripening fruits.'),
+('Cauliflower',  'Vegetable', '🥦', '0–1°C',   '90–95%', 14, 'Nov–Feb',    'Store wrapped to prevent discoloration. Keep very cold.'),
+('Cabbage',      'Vegetable', '🥬', '0–1°C',   '90–95%', 21, 'Nov–Feb',    'Remove outer damaged leaves before storage.'),
+('Carrot',       'Vegetable', '🥕', '0–1°C',   '90–95%', 28, 'Nov–Feb',    'Remove tops before storage to retain moisture.'),
+('Spinach',      'Vegetable', '🥗', '0–2°C',   '95–100%',5,  'Nov–Feb',    'Store in perforated plastic bags. Very perishable.'),
+('Green Bean',   'Vegetable', '🫘', '4–8°C',   '90–95%', 7,  'Year-round', 'Blanch before freezing for longer storage.'),
+('Bitter Gourd', 'Vegetable', '🫑', '10–12°C', '85–90%', 7,  'Year-round', 'Store in cool and shaded area. Avoid direct sunlight.'),
+('Pumpkin',      'Vegetable', '🎃', '10–13°C', '60–70%', 60, 'Year-round', 'Keep stem intact. Store in dry area with good ventilation.');
+
 
 
 -- SAMPLE DATA (password: demo1234)
