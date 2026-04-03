@@ -473,6 +473,7 @@ openModal(`<div class="modal">
   </div>`);
   updateStorageTip();
 }
+
 function updateStorageTip() {
   const name = document.getElementById('ap-name')?.value;
   const info = PRODUCE_DB[name];
@@ -486,9 +487,12 @@ async function submitAddProduct() {
   const unit=document.getElementById('ap-unit').value;
   const date=document.getElementById('ap-date').value;
   const loc=document.getElementById('ap-loc').value;
+
 if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','danger');
   const info = PRODUCE_DB[name]||{};
+
   try {
+
     const item = await apiFetch('/produce', { method:'POST', body: JSON.stringify({
       name, category: info.cat||'Other', quantity: Number(qty), unit,
       harvest_date: date, location: loc,
@@ -523,6 +527,7 @@ function renderTransportReqs() {
     <div class="card"><div class="card-body table-wrap">
     
     <table class="data-table">
+
       <thead><tr><th>Produce</th><th>Pickup</th><th>Destination</th><th>Date</th><th>Quantity</th><th>Transporter</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${myT.map(t=>`<tr>
         <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
@@ -536,6 +541,8 @@ function renderTransportReqs() {
   `;
 }  
 function openAddTransport() {
+
+
   const myP = state.products.filter(p=>p.farmerId===state.user.id);
   openModal(`<div class="modal">
     <div class="modal-header"><span class="modal-title">🚛 New Transport Request</span><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -545,7 +552,9 @@ function openAddTransport() {
         <select class="form-control" id="at-prod">
           <option value="">-- Select Produce --</option>
           ${myP.map(p=>`<option value="${p.id}" data-loc="${p.location}">${p.emoji||'🌿'} ${p.name} (${p.quantity} ${p.unit})</option>`).join('')}
-        </select>
+       
+          </select>
+
       </div>
       <div class="form-grid-2">
         <div class="form-group"><label class="form-label">Pickup Location</label><input class="form-control" id="at-pickup" placeholder="Auto from product"></div>
@@ -559,6 +568,7 @@ function openAddTransport() {
       <button class="btn btn-primary btn-full" onclick="submitTransport()">Submit Request</button>
     </div>
   </div>`);
+  
   document.getElementById('at-prod').addEventListener('change', function() {
     const opt = this.options[this.selectedIndex];
     const loc = opt.getAttribute('data-loc');
@@ -567,4 +577,28 @@ function openAddTransport() {
 }
 
 async function submitTransport() {
+  
   const prodId=document.getElementById('at-prod').value;
+  const dest=document.getElementById('at-dest').value;
+  if(!prodId||!dest) return showAlert('at-alert','Select produce and enter destination.','danger');
+  
+  const prod = state.products.find(p=>p.id===prodId);
+ 
+  try {
+    const item = await apiFetch('/transport', { method:'POST', body: JSON.stringify({
+      product_id: prodId, produce_name: prod?.name,
+      pickup_location: document.getElementById('at-pickup').value||prod?.location,
+      destination: dest, pickup_date: document.getElementById('at-date').value,
+      quantity: document.getElementById('at-qty').value,
+      notes: document.getElementById('at-notes').value
+    })});
+
+    state.trans.push(normTrans(item));
+    closeModal();
+    renderTransportReqs();
+
+  } 
+  catch(e) {
+    showAlert('at-alert', e.message || 'Failed to submit.', 'danger');
+  }
+} 
