@@ -321,9 +321,7 @@ async function doLogin() {
       setAuthBtnState('login-btn', false);
       return;
     }
-    showAlert('auth-alert', 'Demo mode is admin-only. Please sign in with a real account.', 'danger');
-    setAuthBtnState('login-btn', false);
-    return;
+    // Demo is admin-only; non-admins should proceed to real login.
   }
   
   try {
@@ -379,26 +377,7 @@ async function doRegister() {
   
   setAuthBtnState('reg-btn', true);
   
-  if (DEMO_MODE) {
-    showAlert('auth-alert','Demo mode is admin-only. Please register via the server.','danger');
-    setAuthBtnState('reg-btn', false);
-    return;
-  }
-    const emailExists = SEED_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
-    if (emailExists) {
-      showAlert('auth-alert','Email already registered.','danger');
-      setAuthBtnState('reg-btn', false);
-      return;
-    }
-    const newUser = { id:'user'+Date.now(), name, email, password:pass, role, location, vehicle, joined:today() };
-    SEED_USERS.push(newUser);
-    state.users.push(normUser(newUser));
-    showAlert('auth-alert','Registration successful! You can now sign in.','success');
-    switchAuthTab('login');
-    document.getElementById('login-email').value = email;
-    setAuthBtnState('reg-btn', false);
-    return;
-  }
+  // Demo mode does not block real registration.
   
   try {
     showAlert('auth-alert','Registering...','info');

@@ -146,12 +146,12 @@ const CREATE_TABLES = [
 
 const SEED_DATA = [
   `INSERT IGNORE INTO users (name, email, password_hash, role, location, vehicle_type) VALUES
-  ('Admin User',      'admin@harvest.bd',  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'admin',     '',          ''),
-  ('Rahim Uddin',     'rahim@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Rajshahi',  ''),
-  ('Sufia Begum',     'sufia@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Mymensingh',''),
-  ('Karim Transport', 'karim@trans.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'transport', '',          'Refrigerated Truck'),
-  ('Dhaka Fresh Ltd', 'dhaka@fresh.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer',    'Dhaka',     ''),
-  ('Chittagong Grocers', 'chittagong@fresh.bd', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer', 'Chittagong', '')`,
+  ('Admin User',      'admin@harvest.bd',  '$2a$12$cN1Y6KhF8dv.asRSGgKZYO8mdZ0ak1YEP3s6sbvq542uqShny3Yfe', 'admin',     '',          ''),
+  ('Rahim Uddin',     'rahim@farm.bd',     '$2a$12$8HyQhraBlMaxyuj1V/NODOgL99TIjAyShGLF65vqVXzcrZhplNgPW', 'farmer',    'Rajshahi',  ''),
+  ('Sufia Begum',     'sufia@farm.bd',     '$2a$12$8HyQhraBlMaxyuj1V/NODOgL99TIjAyShGLF65vqVXzcrZhplNgPW', 'farmer',    'Mymensingh',''),
+  ('Karim Transport', 'karim@trans.bd',    '$2a$12$8HyQhraBlMaxyuj1V/NODOgL99TIjAyShGLF65vqVXzcrZhplNgPW', 'transport', '',          'Refrigerated Truck'),
+  ('Dhaka Fresh Ltd', 'dhaka@fresh.bd',    '$2a$12$8HyQhraBlMaxyuj1V/NODOgL99TIjAyShGLF65vqVXzcrZhplNgPW', 'dealer',    'Dhaka',     ''),
+  ('Chittagong Grocers', 'chittagong@fresh.bd', '$2a$12$8HyQhraBlMaxyuj1V/NODOgL99TIjAyShGLF65vqVXzcrZhplNgPW', 'dealer', 'Chittagong', '')`,
 
   `INSERT IGNORE INTO produce (farmer_id, farmer_name, name, category, emoji, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips, status) VALUES
   (2, 'Rahim Uddin', 'Mango',   'Fruit',     '🥭', 500,  'kg',    '2026-01-20', 'Rajshahi',   '13-15°C',  '85-90%',  14, 'Store away from ethylene-sensitive produce. Ripen at room temperature.', 'Available'),
@@ -199,6 +199,17 @@ async function init() {
     await ensureColumn('deals', 'updated_at', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
     await ensureColumn('delivery_failures', 'created_at', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP');
     await ensureColumn('delivery_failures', 'updated_at', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    const oldSeedHash = '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i';
+    const adminHash = '$2a$12$cN1Y6KhF8dv.asRSGgKZYO8mdZ0ak1YEP3s6sbvq542uqShny3Yfe';
+    const userHash = '$2a$12$8HyQhraBlMaxyuj1V/NODOgL99TIjAyShGLF65vqVXzcrZhplNgPW';
+    await pool.execute(
+      'UPDATE users SET password_hash = ? WHERE email = ? AND password_hash = ?',
+      [adminHash, 'admin@harvest.bd', oldSeedHash]
+    );
+    await pool.execute(
+      'UPDATE users SET password_hash = ? WHERE email IN (?,?,?,?,?) AND password_hash = ?',
+      [userHash, 'rahim@farm.bd', 'sufia@farm.bd', 'karim@trans.bd', 'dhaka@fresh.bd', 'chittagong@fresh.bd', oldSeedHash]
+    );
 
     console.log('Seeding data...');
     for (const sql of SEED_DATA) {
