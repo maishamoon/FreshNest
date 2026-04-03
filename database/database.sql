@@ -101,6 +101,25 @@ CREATE TABLE IF NOT EXISTS deals (
   INDEX idx_status (status)
 ) ENGINE=InnoDB;
 
+-- ────────────────────────────────────────────────────────────
+--  DELIVERY FAILURES
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS delivery_failures (
+  id                    INT AUTO_INCREMENT PRIMARY KEY,
+  transporter_id        INT          NOT NULL,
+  transporter_name      VARCHAR(150) NOT NULL,
+  transport_request_id  INT          NOT NULL,
+  produce_name          VARCHAR(100) DEFAULT '',
+  route                 VARCHAR(300) DEFAULT '',
+  reason                VARCHAR(200) NOT NULL,
+  notes                 TEXT,
+  alternatives          JSON,
+  reported_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (transporter_id)       REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (transport_request_id) REFERENCES transport_requests(id) ON DELETE CASCADE,
+  INDEX idx_transporter (transporter_id)
+) ENGINE=InnoDB;
+
 
 -- SAMPLE DATA (password: demo1234)
 INSERT INTO users (name, email, password_hash, role, location) VALUES
