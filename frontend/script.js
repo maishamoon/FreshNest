@@ -55,4 +55,16 @@ async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
   const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
-  
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    const text = await res.text();
+    data = { error: text };
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data.data;
+}
