@@ -214,3 +214,24 @@ app.get('/api/produce', auth(), async (req, res) => {
     error(res, 'Failed to fetch produce.', 500);
   }
 });
+
+/** POST /api/produce — Farmer only */
+app.post('/api/produce', auth(['farmer']), async (req, res) => {
+  try {
+    const { name, category, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips } = req.body;
+    if (!name || !quantity || !harvest_date || !location) return error(res, 'Required fields missing.');
+
+    const [result] = await pool.execute(
+      `INSERT INTO produce (farmer_id, farmer_name, name, category, quantity, unit, harvest_date, location,
+        storage_temp, storage_humidity, fresh_days, storage_tips, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')`,
+      [req.user.id, req.user.name, name, category || 'Other', quantity, unit || 'kg',
+       harvest_date, location, storage_temp || '', storage_humidity || '', fresh_days || 0, storage_tips || '']
+    );
+
+    const [newItem] = await query('SELECT * FROM produce WHERE id = ?', [result.insertId]);
+    success(res, newItem, 201);
+  } catch (err) {
+    error(res, 'Failed to add produce.', 500);
+  }
+});
