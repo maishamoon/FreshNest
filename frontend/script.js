@@ -394,28 +394,33 @@ function renderFarmerDashboard() {
   const myD = state.deals.filter(d=>d.farmerId===u.id);
   const pending = myD.filter(d=>d.status==='Pending').length;
   document.getElementById('page-body').innerHTML = `
-    <div class="hero-banner">
+    
+  <div class="hero-banner">
       <div class="inner">
         <h2>Good day, ${u.name}! ${ROLE_CFG.farmer.icon}</h2>
         <p>Track your harvest, manage storage conditions, and connect with logistics partners — all from one place.</p>
       </div>
     </div>
     <div class="stats-grid">
+
       <div class="stat-card green" data-icon="🌿"><div class="stat-value">${myP.length}</div><div class="stat-label">Listed Produce</div><div class="stat-sub">Items in market</div></div>
       <div class="stat-card gold" data-icon="🚛"><div class="stat-value">${myT.length}</div><div class="stat-label">Transport Requests</div><div class="stat-sub">${myT.filter(t=>t.status==='Open').length} open</div></div>
       <div class="stat-card forest" data-icon="🤝"><div class="stat-value">${myD.length}</div><div class="stat-label">Total Deals</div><div class="stat-sub">${myD.filter(d=>d.status==='Accepted').length} accepted</div></div>
       <div class="stat-card sage" data-icon="🔔"><div class="stat-value">${pending}</div><div class="stat-label">Pending Offers</div><div class="stat-sub">Awaiting response</div></div>
     </div>
+   
     ${pending>0?`<div class="alert alert-warning">⚠️ You have <strong>${pending} pending deal offer(s)</strong> from dealers waiting for your response.</div>`:''}
     <div class="info-grid">
       <div class="card">
         <div class="card-header"><div class="card-title">📋 Recent Produce</div></div>
         <div style="overflow-x:auto">
+
         <table class="data-table">
           <thead><tr><th>Produce</th><th>Qty</th><th>Status</th><th>Fresh Days</th></tr></thead>
           <tbody>${myP.length?myP.slice(-4).reverse().map(p=>`<tr><td>${p.emoji||'🌿'} <strong>${p.name}</strong></td><td>${p.quantity} ${p.unit}</td><td>${badge(p.status)}</td><td>${p.freshDays} days</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:#8FA8A0;padding:20px">No produce listed yet</td></tr>'}</tbody>
         </table></div>
       </div>
+
       <div class="card">
         <div class="card-header"><div class="card-title">🚛 Recent Transport</div></div>
         <div style="overflow-x:auto">
@@ -424,6 +429,7 @@ function renderFarmerDashboard() {
           <tbody>${myT.length?myT.slice(-4).reverse().map(t=>`<tr><td>${t.product}</td><td>${t.pickup}→${t.destination}</td><td>${badge(t.status)}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#8FA8A0;padding:20px">No requests yet</td></tr>'}</tbody>
         </table></div>
       </div>
+
     </div>
   `;
 }
@@ -445,6 +451,7 @@ openModal(`<div class="modal">
         
         
           </select>
+
       </div>
       <div id="storage-tip-box" class="storage-tip">💡 Recommended: 13–15°C · 85–90% humidity · Fresh for 14 days. Store away from ethylene-sensitive produce.</div>
       <div class="form-grid-2">
@@ -456,7 +463,8 @@ openModal(`<div class="modal">
       </div>
 
       <div class="form-grid-2">
-        <div class="form-group"><label class="form-label">Harvest Date</label><input class="form-control" type="date" id="ap-date" value="${today()}"></div>
+        
+      <div class="form-group"><label class="form-label">Harvest Date</label><input class="form-control" type="date" id="ap-date" value="${today()}"></div>
         <div class="form-group"><label class="form-label">Storage Location</label><input class="form-control" id="ap-loc" placeholder="e.g. Rajshahi" value="${state.user.location||''}"></div>
       </div>
       <button class="btn btn-primary btn-full" onclick="submitAddProduct()">Add to Listing</button>
