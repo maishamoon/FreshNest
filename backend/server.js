@@ -1,18 +1,51 @@
-// Server.js — Main Express Server for FreshNest
+/**
+ * HarvestLink BD — Backend API Server
+ * Node.js + Express + MySQL
+ * 
+ * Routes:
+ *   POST   /api/auth/register
+ *   POST   /api/auth/login
+ *   GET    /api/users
+ *   GET    /api/produce
+ *   POST   /api/produce
+ *   DELETE /api/produce/:id
+ *   GET    /api/transport
+ *   POST   /api/transport
+ *   PATCH  /api/transport/:id
+ *   GET    /api/deals
+ *   POST   /api/deals
+ *   PATCH  /api/deals/:id
+ *   GET    /api/failures
+ *   POST   /api/failures
+ */
 
-const express   = require('express');
-const cors      = require('cors');
-const mysql     = require('mysql2/promise');
-const bcrypt    = require('bcryptjs');
-const jwt       = require('jsonwebtoken');
+const express    = require('express');
+const cors       = require('cors');
+const helmet     = require('helmet');
+const mysql      = require('mysql2/promise');
+const bcrypt     = require('bcryptjs');
+const jwt        = require('jsonwebtoken');
+const rateLimit  = require('express-rate-limit');
 require('dotenv').config();
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── MIDDLEWARE ───────────────────────────────────────────
-app.use(cors());
+// ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (file://, Postman, etc.) and any localhost
+    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin === 'null') {
+      callback(null, true);
+    } else {
+      callback(null, process.env.CLIENT_ORIGIN === origin ? true : false);
+    }
+  },
+  credentials: true
+}));
+app.use(helmet());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ─── DATABASE CONNECTION ─────────────────────────────────
 const pool = mysql.createPool({
