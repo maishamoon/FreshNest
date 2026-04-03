@@ -486,3 +486,19 @@ async function submitAddProduct() {
   const unit=document.getElementById('ap-unit').value;
   const date=document.getElementById('ap-date').value;
   const loc=document.getElementById('ap-loc').value;
+if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','danger');
+  const info = PRODUCE_DB[name]||{};
+  try {
+    const item = await apiFetch('/produce', { method:'POST', body: JSON.stringify({
+      name, category: info.cat||'Other', quantity: Number(qty), unit,
+      harvest_date: date, location: loc,
+      storage_temp: info.temp||'', storage_humidity: info.humidity||'',
+      fresh_days: info.freshDays||0, storage_tips: info.tips||''
+    })});
+    state.products.push(normProduce(item));
+    closeModal();
+    renderMyProducts();
+  } catch(e) {
+    showAlert('add-prod-alert', e.message || 'Failed to add produce.', 'danger');
+  }
+}
