@@ -1,7 +1,7 @@
 {
-  "name": "harvestlink-bd-backend",
+  "name": "freshnest-backend",
   "version": "1.0.0",
-  "description": "HarvestLink BD — Post-Harvest Storage & Logistics Management API",
+  "description": "FreshNest — Post-Harvest Storage & Logistics Management API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,7 +9,7 @@
     "db:setup": "mysql -u root -p < database.sql"
   },
   "keywords": ["agriculture", "logistics", "bangladesh", "post-harvest"],
-  "author": "HarvestLink BD Team",
+  "author": "FreshNest Team",
   "license": "MIT",
   "dependencies": {
     "bcryptjs": "^2.4.3",
