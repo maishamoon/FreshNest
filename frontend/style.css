@@ -659,3 +659,81 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .modal-close:hover { background: var(--red-light); color: var(--red); }
 .modal-body { padding: 1.5rem; }
+/* ── PRODUCE CARD ── */
+.produce-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+.produce-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1.5px solid var(--stone);
+  transition: all .22s;
+}
+.produce-card:hover {
+  box-shadow: var(--shadow);
+  border-color: var(--mint);
+  transform: translateY(-3px);
+}
+
+.produce-card-header {
+  padding: 1.2rem;
+  text-align: center;
+  position: relative;
+}
+.produce-emoji { font-size: 2.8rem; display: block; margin-bottom: 6px; }
+.produce-name  { font-weight: 700; font-size: 1rem; color: var(--forest); }
+.produce-meta  { font-size: .78rem; color: var(--slate); margin-top: 2px; }
+
+.produce-card-body { padding: .8rem 1.2rem 1.2rem; border-top: 1px solid var(--stone); }
+
+.produce-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: .8rem;
+  border-bottom: 1px solid var(--ivory);
+}
+.produce-info-row:last-child { border-bottom: none; }
+.produce-info-label { color: var(--slate); }
+.produce-info-val   { font-weight: 600; color: var(--forest); }
+
+/* ── STORAGE TIP BOX ── */
+.storage-tip {
+  background: linear-gradient(135deg, var(--foam), #D5F5E3);
+  border-left: 4px solid var(--sage);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 11px 14px;
+  font-size: .83rem;
+  color: var(--green);
+  margin-top: 10px;
+  margin-bottom: 14px;
+}
+
+/* ── FAILURE CARD ── */
+.failure-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  border-left: 5px solid var(--amber);
+  box-shadow: var(--shadow-sm);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.alternatives-box {
+  background: var(--foam);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.2rem;
+  margin-top: 10px;
+}
+.alternatives-box h4 { font-size: .82rem; font-weight: 700; color: var(--green); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.alt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: .82rem;
+  color: var(--slate);
+  margin-bottom: 6px;
+}
+.alt-item::before { content: '→'; color: var(--sage); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
