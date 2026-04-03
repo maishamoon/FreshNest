@@ -300,3 +300,33 @@ app.post('/api/transport', auth(['farmer']), async (req, res) => {
     error(res, 'Failed to create transport request.', 500);
   }
 });
+
+/** PATCH /api/transport/:id — Accept / Complete / Cancel */
+app.patch('/api/transport/:id', auth(['farmer', 'transport', 'admin']), async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['Open', 'Accepted', 'Completed', 'Cancelled', 'Failed'];
+    if (!allowed.includes(status)) return error(res, 'Invalid status.');
+
+    const item = await query('SELECT * FROM transport_requests WHERE id = ?', [req.params.id]);
+    if (!item.length) return error(res, 'Request not found.', 404);
+
+    let sql, params;
+    if (status === 'Accepted' && req.user.role === 'transport') {
+      sql = 'UPDATE transport_requests SET status = ?, assigned_to = ?, transporter_name = ? WHERE id = ?';
+      params = [status, req.user.id, req.user.name, req.params.id];
+    } else if (status === 'Cancelled' && req.user.role === 'farmer') {
+      if (item[0].farmer_id !== req.user.id) return error(res, 'Not your request.', 403);
+      sql = 'UPDATE transport_requests SET status = ? WHERE id = ?';
+      params = [status, req.params.id];
+    } else {
+      sql = 'UPDATE transport_requests SET status = ? WHERE id = ?';
+      params = [status, req.params.id];
+    }
+
+    await pool.execute(sql, params);
+    success(res, { message: 'Status updated.' });
+  } catch (err) {
+    error(res, 'Failed to update transport request.', 500);
+  }
+});
