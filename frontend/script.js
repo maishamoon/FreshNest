@@ -13,7 +13,8 @@ const PRODUCE_DB = {
   'Orange':      { cat:'Fruit', emoji:'🍊', temp:'3–9°C',   humidity:'85–90%', freshDays:21, tips:'Check regularly for mold. Do not wash before storage.', harvestMonths:'Nov–Feb' },
   'Strawberry':  { cat:'Fruit', emoji:'🍓', temp:'0–2°C',   humidity:'90–95%', freshDays:5,  tips:'Handle with extreme care. Never wash before storage.', harvestMonths:'Dec–Feb' },
   'Grape':       { cat:'Fruit', emoji:'🍇', temp:'0–2°C',   humidity:'90–95%', freshDays:21, tips:'Store in original clusters. Avoid temperature fluctuation.', harvestMonths:'Dec–Mar' },
-   // VEGETABLES
+   
+  // VEGETABLES
   'Tomato':      { cat:'Vegetable', emoji:'🍅', temp:'10–13°C', humidity:'85–90%', freshDays:10, tips:'Store stem-up. Never refrigerate fully ripe tomatoes.', harvestMonths:'Oct–Mar' },
   'Potato':      { cat:'Vegetable', emoji:'🥔', temp:'4–7°C',  humidity:'85–90%', freshDays:60, tips:'Store in dark, dry, cool place. Avoid light to prevent greening.', harvestMonths:'Jan–Mar' },
   'Onion':       { cat:'Vegetable', emoji:'🧅', temp:'0–4°C',  humidity:'65–70%', freshDays:90, tips:'Store dry with good airflow. Low humidity is critical.', harvestMonths:'Jan–Apr' },
@@ -27,6 +28,7 @@ const PRODUCE_DB = {
   'Bitter Gourd':{ cat:'Vegetable', emoji:'🫑', temp:'10–12°C', humidity:'85–90%', freshDays:7, tips:'Store in cool and shaded area. Avoid direct sunlight.', harvestMonths:'Year-round' },
   'Pumpkin':     { cat:'Vegetable', emoji:'🎃', temp:'10–13°C', humidity:'60–70%', freshDays:60, tips:'Keep stem intact. Store in dry area with good ventilation.', harvestMonths:'Year-round' },
 };
+
 const SEED_USERS = [
   { id:'admin1', name:'Admin User',     email:'admin@harvest.bd', password:'admin123', role:'admin',     joined:'2026-01-01' },
   { id:'farm1',  name:'Rahim Uddin',    email:'rahim@farm.bd',    password:'pass123',  role:'farmer',    location:'Rajshahi', joined:'2026-01-05' },
@@ -35,11 +37,13 @@ const SEED_USERS = [
   { id:'deal1',  name:'Dhaka Fresh Ltd',email:'dhaka@fresh.bd',   password:'pass123',  role:'dealer',    location:'Dhaka', joined:'2026-01-12' },
   { id:'deal2',  name:'Chittagong Grocers',email:'chittagong@fresh.bd',   password:'pass123',  role:'dealer',    location:'Chittagong', joined:'2026-02-18' },
 ];
+
 const SEED_PRODUCTS = [
   { id:'p1', farmerId:'farm1', farmerName:'Rahim Uddin', name:'Mango', category:'Fruit', quantity:500, unit:'kg', harvestDate:'2026-01-20', location:'Rajshahi', status:'Available', listed:'2026-01-21', ...PRODUCE_DB['Mango'] },
   { id:'p2', farmerId:'farm2', farmerName:'Sufia Begum', name:'Tomato', category:'Vegetable', quantity:300, unit:'kg', harvestDate:'2026-01-22', location:'Mymensingh', status:'Available', listed:'2026-01-22', ...PRODUCE_DB['Tomato'] },
   { id:'p3', farmerId:'farm1', farmerName:'Rahim Uddin', name:'Potato', category:'Vegetable', quantity:1000, unit:'kg', harvestDate:'2026-01-15', location:'Rajshahi', status:'Available', listed:'2026-01-16', ...PRODUCE_DB['Potato'] },
 ];
+
 const SEED_TRANS = [
   { id:'t1', farmerId:'farm1', farmerName:'Rahim Uddin', product:'Mango', productId:'p1', pickup:'Rajshahi', destination:'Dhaka', date:'2026-02-01', quantity:'500 kg', notes:'Refrigerated vehicle required', status:'Open', created:'2026-01-25' },
 ];
@@ -47,15 +51,20 @@ const SEED_TRANS = [
 const SEED_DEALS = [
   { id:'d1', dealerId:'deal1', dealerName:'Dhaka Fresh Ltd', farmerId:'farm1', farmerName:'Rahim Uddin', product:'Mango', productId:'p1', quantity:'200 kg', price:'80', status:'Pending', created:'2026-01-26' },
 ];
+
 // ─── API CONFIG ───────────────────────────────────────────────────────────────
+
 const API_BASE = 'http://localhost:5000/api';
 
 function today() { return new Date().toISOString().slice(0,10); }
 async function apiFetch(path, opts = {}) {
+  
   const headers = { 'Content-Type': 'application/json' };
+  
   if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
   const res = await fetch(API_BASE + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
   let data;
+  
   try {
     data = await res.json();
   } catch (err) {
@@ -68,7 +77,10 @@ async function apiFetch(path, opts = {}) {
   }
   return data.data;
 }
+
 / ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
+
+
 function normUser(u)    { return { ...u, vehicle: u.vehicle_type||'', joined: (u.created_at||'').slice(0,10) }; }
 function normProduce(p) {
   const db = PRODUCE_DB[p.name] || {};
@@ -78,15 +90,18 @@ function normProduce(p) {
     tips: p.storage_tips||db.tips||'', listed: (p.listed_at||'').slice(0,10),
     emoji: p.emoji||db.emoji||'🌿', category: p.category||db.cat||'Other' };
 }
+
 function normTrans(t)   { return { ...t, farmerId: t.farmer_id, farmerName: t.farmer_name,
     product: t.produce_name, productId: t.product_id, pickup: t.pickup_location,
     date: t.pickup_date, assignedTo: t.assigned_to, transporterName: t.transporter_name,
     created: (t.created_at||'').slice(0,10) }; }
+    
     function normDeal(d)    { return { ...d, dealerId: d.dealer_id, dealerName: d.dealer_name,
     farmerId: d.farmer_id, farmerName: d.farmer_name, product: d.produce_name,
     productId: d.product_id, quantity: d.quantity_requested, price: d.offered_price_per_kg,
     msg: d.message, created: (d.created_at||'').slice(0,10) }; }
-function normFail(f)    { return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
+
+    function normFail(f)    { return { ...f, transporterId: f.transporter_id, transporterName: f.transporter_name,
     requestId: f.transport_request_id, product: f.produce_name,
     alternatives: typeof f.alternatives === 'string' ? JSON.parse(f.alternatives||'[]') : (f.alternatives||[]),
     reported: (f.reported_at||'').slice(0,10) }; }
@@ -94,6 +109,7 @@ function normFail(f)    { return { ...f, transporterId: f.transporter_id, transp
 let state = { user:null, token:null, users:[], products:[], trans:[], deals:[], failures:[], activeNav:null };
 
 async function loadAll() {
+  
   try {
     const [products, trans, deals, failures] = await Promise.all([
       apiFetch('/produce').then(r => r.map(normProduce)),
@@ -101,6 +117,7 @@ async function loadAll() {
       apiFetch('/deals').then(r => r.map(normDeal)),
       apiFetch('/failures').then(r => r.map(normFail)),
     ]);
+
      state.products = products;
     state.trans    = trans;
     state.deals    = deals;
@@ -108,11 +125,16 @@ async function loadAll() {
     if (state.user.role === 'admin') {
       state.users = await apiFetch('/users').then(r => r.map(normUser));
     }
-  } catch(e) {
+  } 
+  
+  catch(e) {
     console.error('loadAll error:', e);
   }
 }
+
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
 function showAlert(id, msg, type='info') {
   const el = document.getElementById(id);
   if(el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
@@ -130,13 +152,17 @@ function badge(status) {
 }
 
 function produceEmoji(name) { return PRODUCE_DB[name]?.emoji || '🌿'; }
+
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
+
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='login'?0:1)));
   document.getElementById('login-form').style.display    = tab==='login'?'block':'none';
   document.getElementById('register-form').style.display = tab==='register'?'block':'none';
   document.getElementById('auth-alert').innerHTML='';
 }
+
+
 function loadDemoData() {
   state.users    = SEED_USERS.map(normUser);
   state.products = SEED_PRODUCTS.map(normProduce);
@@ -149,6 +175,7 @@ function quickLogin(email, pass) {
   document.getElementById('login-email').value = email;
   document.getElementById('login-pass').value = pass;
   const demoUser = SEED_USERS.find(u => u.email === email && u.password === pass);
+  
   if (demoUser) {
     state.user  = { ...demoUser, vehicle: demoUser.vehicle || '' };
     state.token = 'demo-token';
@@ -158,26 +185,35 @@ function quickLogin(email, pass) {
     initApp();
     return;
   }
+
  doLogin();
 }
+
+
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   if (!email || !pass) return showAlert('auth-alert','Email and password required.','danger');
   try {
     showAlert('auth-alert','Signing in...','info');
+    
     const data = await apiFetch('/auth/login', { method:'POST', body: JSON.stringify({ email, password: pass }) });
     state.token = data.token;
     state.user  = { ...data.user, vehicle: data.user.vehicle||'' };
+    
     try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
     await loadAll();
     initApp();
-  } catch(e) {
+  } 
+   
+  catch(e) {
     if (e.message && e.message.toLowerCase().includes('failed to fetch')) {
       const user = SEED_USERS.find(u => u.email === email && u.password === pass);
+      
       if (user) {
         state.user  = { ...user, vehicle: user.vehicle || '' };
         state.token = 'demo-token';
+        
         try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
         loadDemoData();
         initApp();
@@ -193,36 +229,55 @@ function toggleRoleFields() {
   document.getElementById('field-location').style.display = r!=='transport'?'block':'none';
   document.getElementById('field-vehicle').style.display  = r==='transport'?'block':'none';
 }
+
+
 async function doRegister() {
   const name=document.getElementById('reg-name').value.trim();
   const email=document.getElementById('reg-email').value.trim();
   const pass=document.getElementById('reg-pass').value;
   const role=document.getElementById('reg-role').value;
+  
   if(!name||!email||!pass) return showAlert('auth-alert','All fields are required.','danger');
+  
   if(pass.length < 6) return showAlert('auth-alert','Password must be at least 6 characters.','danger');
+  
   const location = document.getElementById('reg-location')?.value||'';
+  
   const vehicle  = document.getElementById('reg-vehicle')?.value||'';
+  
   try {
+    
     showAlert('auth-alert','Registering...','info');
+    
     const newUserData = await apiFetch('/auth/register', { method:'POST', body: JSON.stringify({ name, email, password: pass, role, location, vehicle }) });
+    
     const newUser = normUser(newUserData);
+    
     showAlert('auth-alert','Registration successful! You can now sign in.','success');
+
     switchAuthTab('login');
+
     document.getElementById('login-email').value = email;
+
     if (state.user && state.user.role === 'admin' && state.token && state.token !== 'demo-token') {
       state.users.push(newUser);
+
       try {
         const users = await apiFetch('/users');
         state.users = users.map(normUser);
-      } catch(err) {
+      }
+       catch(err) {
         console.warn('Could not refresh full admin users list:', err);
       }
       if (state.activeNav === 'users') renderAdminUsers();
     }
-  } catch(e) {
+  } 
+  catch(e) {
     showAlert('auth-alert', e.message || 'Registration failed.', 'danger');
   }
 }
+
+
 function doLogout() {
   state.user = null;
   state.token = null;
@@ -232,7 +287,10 @@ function doLogout() {
   document.getElementById('app').style.display='none';
   document.getElementById('auth-page').style.display='flex';
 }
+
+
 // ─── APP INIT ─────────────────────────────────────────────────────────────────
+
 const ROLE_CFG = {
   farmer:    { color:'#27AE60', bg:'#1E8449', icon:'🌾', navItems: [
     { id:'dashboard', label:'Dashboard',          icon:'📊' },
@@ -241,17 +299,20 @@ const ROLE_CFG = {
     { id:'deals',     label:'My Deals',            icon:'🤝' },
     { id:'storage',   label:'Storage Guide',       icon:'📦' },
   ]},
+
   transport: { color:'#E67E22', bg:'#CA6F1E', icon:'🚛', navItems: [
     { id:'dashboard', label:'Dashboard',           icon:'📊' },
     { id:'offers',    label:'Browse Requests',     icon:'📋' },
     { id:'myjobs',    label:'My Jobs',             icon:'🗓️' },
     { id:'failures',  label:'Report Failure',      icon:'⚠️' },
   ]},
+
   dealer:    { color:'#2471A3', bg:'#1A5276', icon:'🏪', navItems: [
     { id:'dashboard', label:'Dashboard',           icon:'📊' },
     { id:'browse',    label:'Browse Produce',      icon:'🛒' },
     { id:'mydeals',   label:'My Deals',            icon:'🤝' },
   ]},
+
   admin:     { color:'#8E44AD', bg:'#6C3483', icon:'⚙️', navItems: [
     { id:'dashboard', label:'Overview',            icon:'📊' },
     { id:'users',     label:'All Users',           icon:'👥' },
@@ -261,14 +322,17 @@ const ROLE_CFG = {
     { id:'failures',  label:'Failures',            icon:'⚠️' },
   ]},
 };
+
 function initApp() {
   document.getElementById('auth-page').style.display='none';
   document.getElementById('app').style.display='block';
   const u = state.user;
   const cfg = ROLE_CFG[u.role];app3
+  
   onst avatar = u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('sidebar-user-info').innerHTML = `
-    <div class="sidebar-user-avatar" style="background:${cfg.bg}">${avatar}</div>
+    
+  <div class="sidebar-user-avatar" style="background:${cfg.bg}">${avatar}</div>
     <div class="sidebar-user-name">${u.name}</div>
     <div class="sidebar-user-role" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${cfg.icon} ${u.role.charAt(0).toUpperCase()+u.role.slice(1)}</div>
   `;
@@ -285,3 +349,47 @@ function initApp() {
 
   navigate(cfg.navItems[0].id);
 }
+
+
+function navigate(id) {
+  
+  state.activeNav = id;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('nav-'+id);
+  if(el) el.classList.add('active');
+  const cfg = ROLE_CFG[state.user.role];
+  const navItem = cfg.navItems.find(n=>n.id===id);
+  document.getElementById('topbar-title').textContent = navItem?.label||'';
+  const body = document.getElementById('page-body');
+  body.innerHTML = '';
+
+  const renders = {
+    // FARMER
+    
+    farmer: { dashboard:renderFarmerDashboard, products:renderMyProducts, transport:renderTransportReqs, deals:renderFarmerDeals, storage:renderStorageGuide },
+    // TRANSPORT
+    
+    transport: { dashboard:renderTransportDashboard, offers:renderBrowseRequests, myjobs:renderMyJobs, failures:renderFailures },
+    // DEALER
+    
+    dealer: { dashboard:renderDealerDashboard, browse:renderBrowseProduce, mydeals:renderMyDeals },
+    // ADMIN
+    
+    admin: { dashboard:renderAdminDashboard, users:renderAdminUsers, products:renderAdminProducts, transport:renderAdminTransport, deals:renderAdminDeals, failures:renderAdminFailures },
+  };
+
+  const fn = renders[state.user.role]?.[id];
+  if(fn) fn();
+}
+
+
+/ ──────────────────────────────────────────────────────────────────────────────
+//  FARMER PAGES
+// ──────────────────────────────────────────────────────────────────────────────
+ 
+function renderFarmerDashboard() {
+  const u = state.user;
+  const myP = state.products.filter(p=>p.farmerId===u.id);
+  const myT = state.trans.filter(t=>t.farmerId===u.id);
+  const myD = state.deals.filter(d=>d.farmerId===u.id);
+  const pending = myD.filter(d=>d.status==='Pending').length;
