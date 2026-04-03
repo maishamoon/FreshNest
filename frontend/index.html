@@ -8,3 +8,29 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- ============================================================
+     AUTH PAGE
+     ============================================================ -->
+<div id="auth-page">
+  <div class="auth-left">
+    <div class="auth-brand">
+      <span class="logo-icon">🌿</span>
+      <h1>Fresh<span>Nest</span></h1>
+      <p>A centralized platform for post-harvest storage and logistics management of perishable produce in Bangladesh.</p>
+      <div class="auth-features">
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Smart storage condition guidance for 24+ crops</div>
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Real-time transport request & offer matching</div>
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Delivery failure alerts with alternative routing</div>
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Direct farmer-to-dealer deal management</div>
+      </div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Sign in to your account or create a new one</p>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+      </div>
+      <div id="auth-alert"></div>
