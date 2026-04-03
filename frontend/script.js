@@ -59,7 +59,8 @@ const API_BASE = window.API_BASE || 'http://localhost:5000/api';
 
 function today() { return new Date().toISOString().slice(0,10); }
 function toId(value) { return value === null || value === undefined ? '' : String(value); }
-function isDemo() { return DEMO_MODE === true; }
+function isDemoAllowed(role) { return DEMO_MODE === true && role === 'admin'; }
+function isDemo() { return DEMO_MODE === true && state.user && state.user.role === 'admin'; }
 async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (state.token && state.token !== 'demo-token') headers['Authorization'] = 'Bearer ' + state.token;
@@ -279,7 +280,7 @@ function loadDemoData() {
 }
 
 function quickLogin(email, pass) {
-  if (!isDemo()) {
+  if (!isDemoAllowed('admin')) {
     showAlert('auth-alert','Demo mode is disabled. Please sign in with a real account.','danger');
     return;
   }
@@ -287,7 +288,7 @@ function quickLogin(email, pass) {
   document.getElementById('login-pass').value = pass;
   const demoUser = SEED_USERS.find(u => u.email === email && u.password === pass);
   
-  if (demoUser) {
+  if (demoUser && demoUser.role === 'admin') {
     state.user  = normUser(demoUser);
     state.token = 'demo-token';
     localStorage.setItem('hl_token', state.token);
@@ -310,7 +311,7 @@ async function doLogin() {
   
   if (DEMO_MODE) {
     const user = SEED_USERS.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
-    if (user) {
+    if (user && user.role === 'admin') {
       state.user  = normUser(user);
       state.token = 'demo-token';
       localStorage.setItem('hl_token', state.token);
@@ -320,7 +321,7 @@ async function doLogin() {
       setAuthBtnState('login-btn', false);
       return;
     }
-    showAlert('auth-alert', 'Demo mode: Invalid credentials.', 'danger');
+    showAlert('auth-alert', 'Demo mode is admin-only. Please sign in with a real account.', 'danger');
     setAuthBtnState('login-btn', false);
     return;
   }
@@ -379,6 +380,10 @@ async function doRegister() {
   setAuthBtnState('reg-btn', true);
   
   if (DEMO_MODE) {
+    showAlert('auth-alert','Demo mode is admin-only. Please register via the server.','danger');
+    setAuthBtnState('reg-btn', false);
+    return;
+  }
     const emailExists = SEED_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
     if (emailExists) {
       showAlert('auth-alert','Email already registered.','danger');
@@ -1664,6 +1669,14 @@ document.getElementById('topbar-date') && (document.getElementById('topbar-date'
     state.user  = normUser(JSON.parse(userRaw));
 
     if (token === 'demo-token') {
+      if (!state.user || state.user.role !== 'admin') {
+        localStorage.removeItem('hl_token');
+        localStorage.removeItem('hl_user');
+        state.token = null;
+        state.user  = null;
+        showAlert('auth-alert','Demo mode is admin-only. Please sign in.','danger');
+        return;
+      }
       loadDemoData();
       initApp();
       return;
