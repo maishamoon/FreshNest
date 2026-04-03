@@ -188,3 +188,8 @@ async function doLogin() {
     showAlert('auth-alert', e.message || 'Invalid email or password.', 'danger');
   }
 }
+function toggleRoleFields() {
+  const r = document.getElementById('reg-role').value;
+  document.getElementById('field-location').style.display = r!=='transport'?'block':'none';
+  document.getElementById('field-vehicle').style.display  = r==='transport'?'block':'none';
+}
