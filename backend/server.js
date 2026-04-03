@@ -349,3 +349,22 @@ app.get('/api/deals', auth(), async (req, res) => {
     error(res, 'Failed to fetch deals.', 500);
   }
 });
+
+/** POST /api/deals — Dealer only */
+app.post('/api/deals', auth(['dealer']), async (req, res) => {
+  try {
+    const { farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message } = req.body;
+    if (!farmer_id || !produce_name || !offered_price_per_kg) return error(res, 'Required fields missing.');
+
+    const [result] = await pool.execute(
+      `INSERT INTO deals (dealer_id, dealer_name, farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
+      [req.user.id, req.user.name, farmer_id, farmer_name, product_id || null, produce_name, quantity_requested || '', offered_price_per_kg, message || '']
+    );
+
+    const [newItem] = await query('SELECT * FROM deals WHERE id = ?', [result.insertId]);
+    success(res, newItem, 201);
+  } catch (err) {
+    error(res, 'Failed to create deal.', 500);
+  }
+});
