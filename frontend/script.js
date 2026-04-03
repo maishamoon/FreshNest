@@ -603,14 +603,17 @@ async function submitTransport() {
   }
 }
  async function cancelTransport(id) {
+
   try {
     await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
     state.trans = state.trans.map(t=>t.id===id?{...t,status:'Cancelled'}:t);
     renderTransportReqs();
-  } catch(e) { alert('Failed: '+e.message); }
+  } 
+  catch(e) { alert('Failed: '+e.message); }
 }
 
 function renderFarmerDeals() 
+
 {
   const myD = state.deals.filter(d=>d.farmerId===state.user.id);
   document.getElementById('page-body').innerHTML = `
@@ -627,6 +630,7 @@ function renderFarmerDeals()
 
         <td>${produceEmoji(d.product)} ${d.product}</td>
         <td>${d.quantity}</td><td>৳${d.price}/kg</td><td>${d.created}</td>
+
         <td>${badge(d.status)}</td>
         <td>${d.status==='Pending'?`
 
@@ -640,16 +644,20 @@ function renderFarmerDeals()
   `;
 }
 
-async function respondDeal(id, status) {
-  try {
+async function respondDeal(id, status)
+{
+  try 
+  {
     await apiFetch('/deals/'+id, { method:'PATCH', body: JSON.stringify({ status }) });
     state.deals = state.deals.map(d=>d.id===id?{...d,status}:d);
     renderFarmerDeals();
 
-  } catch(e) { alert('Failed: '+e.message); }
+  } 
+  catch(e) { alert('Failed: '+e.message); }
 }
 
-function renderStorageGuide() {
+function renderStorageGuide()
+ {
   const fruits = Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Fruit');
   const vegs   = Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Vegetable');
   
