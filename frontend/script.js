@@ -90,4 +90,15 @@ function normFail(f)    { return { ...f, transporterId: f.transporter_id, transp
     requestId: f.transport_request_id, product: f.produce_name,
     alternatives: typeof f.alternatives === 'string' ? JSON.parse(f.alternatives||'[]') : (f.alternatives||[]),
     reported: (f.reported_at||'').slice(0,10) }; }
-    
+    // ─── STATE ────────────────────────────────────────────────────────────────────
+let state = { user:null, token:null, users:[], products:[], trans:[], deals:[], failures:[], activeNav:null };
+
+async function loadAll() {
+  try {
+    const [products, trans, deals, failures] = await Promise.all([
+      apiFetch('/produce').then(r => r.map(normProduce)),
+      apiFetch('/transport').then(r => r.map(normTrans)),
+      apiFetch('/deals').then(r => r.map(normDeal)),
+      apiFetch('/failures').then(r => r.map(normFail)),
+    ]);
+
