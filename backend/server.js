@@ -402,3 +402,24 @@ app.get('/api/failures', auth(), async (req, res) => {
     error(res, 'Failed to fetch failures.', 500);
   }
 });
+
+/** POST /api/failures — Transport only */
+app.post('/api/failures', auth(['transport']), async (req, res) => {
+  try {
+    const { transport_request_id, produce_name, route, reason, notes, alternatives } = req.body;
+    if (!transport_request_id || !reason) return error(res, 'Request ID and reason required.');
+
+    const [result] = await pool.execute(
+      `INSERT INTO delivery_failures (transporter_id, transporter_name, transport_request_id, produce_name, route, reason, notes, alternatives)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.user.id, req.user.name, transport_request_id, produce_name || '', route || '', reason, notes || '', JSON.stringify(alternatives || [])]
+    );
+// Mark transport request as failed
+    await query("UPDATE transport_requests SET status = 'Failed' WHERE id = ?", [transport_request_id]);
+
+    const [newItem] = await query('SELECT * FROM delivery_failures WHERE id = ?', [result.insertId]);
+    success(res, newItem, 201);
+  } catch (err) {
+    error(res, 'Failed to report failure.', 500);
+  }
+});
