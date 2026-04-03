@@ -72,4 +72,10 @@ async function apiFetch(path, opts = {}) {
 function normUser(u)    { return { ...u, vehicle: u.vehicle_type||'', joined: (u.created_at||'').slice(0,10) }; }
 function normProduce(p) {
   const db = PRODUCE_DB[p.name] || {};
+  return { ...p, farmerId: p.farmer_id, farmerName: p.farmer_name,
+    harvestDate: p.harvest_date, temp: p.storage_temp||db.temp||'',
+    humidity: p.storage_humidity||db.humidity||'', freshDays: p.fresh_days||db.freshDays||7,
+    tips: p.storage_tips||db.tips||'', listed: (p.listed_at||'').slice(0,10),
+    emoji: p.emoji||db.emoji||'🌿', category: p.category||db.cat||'Other' };
+}
 
