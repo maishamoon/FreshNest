@@ -223,3 +223,12 @@ async function doRegister() {
     showAlert('auth-alert', e.message || 'Registration failed.', 'danger');
   }
 }
+function doLogout() {
+  state.user = null;
+  state.token = null;
+  state.users = []; state.products = []; state.trans = []; state.deals = []; state.failures = [];
+  state.activeNav = null;
+  try { localStorage.removeItem('hl_token'); localStorage.removeItem('hl_user'); } catch(_){}
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-page').style.display='flex';
+}
