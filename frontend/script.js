@@ -101,4 +101,34 @@ async function loadAll() {
       apiFetch('/deals').then(r => r.map(normDeal)),
       apiFetch('/failures').then(r => r.map(normFail)),
     ]);
+     state.products = products;
+    state.trans    = trans;
+    state.deals    = deals;
+    state.failures = failures;
+    if (state.user.role === 'admin') {
+      state.users = await apiFetch('/users').then(r => r.map(normUser));
+    }
+  } catch(e) {
+    console.error('loadAll error:', e);
+  }
+}
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function showAlert(id, msg, type='info') {
+  const el = document.getElementById(id);
+  if(el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(()=>{ if(el) el.innerHTML=''; }, 4000);
+}
+
+function openModal(html) {
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">${html}</div>`;
+}
+function closeModal() { document.getElementById('modal-container').innerHTML=''; }
+
+function badge(status) {
+  const map = { 'Open':'badge-blue','Available':'badge-green','Accepted':'badge-sage','Completed':'badge-green','Cancelled':'badge-gray','Pending':'badge-gold','Declined':'badge-red','Failed':'badge-red' };
+  return `<span class="badge ${map[status]||'badge-gray'}">${status}</span>`;
+}
+
+function produceEmoji(name) { return PRODUCE_DB[name]?.emoji || '🌿'; }
+
 
