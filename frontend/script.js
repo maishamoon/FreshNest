@@ -601,4 +601,64 @@ async function submitTransport() {
   catch(e) {
     showAlert('at-alert', e.message || 'Failed to submit.', 'danger');
   }
-} 
+}
+ async function cancelTransport(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
+    state.trans = state.trans.map(t=>t.id===id?{...t,status:'Cancelled'}:t);
+    renderTransportReqs();
+  } catch(e) { alert('Failed: '+e.message); }
+}
+
+function renderFarmerDeals() 
+{
+  const myD = state.deals.filter(d=>d.farmerId===state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>My Deals</h2></div>
+    <div id="deal-alert"></div>
+
+    ${myD.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🤝</div><p>No deal offers yet. List your produce so dealers can find you!</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+
+      <thead><tr><th>Dealer</th><th>Produce</th><th>Quantity</th><th>Offered Price</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${myD.map(d=>`<tr>
+        <td><strong>${d.dealerName}</strong></td>
+
+        <td>${produceEmoji(d.product)} ${d.product}</td>
+        <td>${d.quantity}</td><td>৳${d.price}/kg</td><td>${d.created}</td>
+        <td>${badge(d.status)}</td>
+        <td>${d.status==='Pending'?`
+
+          <button class="btn btn-sm btn-primary" onclick="respondDeal('${d.id}','Accepted')">Accept</button>
+          <button class="btn btn-sm btn-danger" style="margin-left:5px" onclick="respondDeal('${d.id}','Declined')">Decline</button>`:'—'}
+        </td>
+
+      </tr>`).join('')}</tbody>
+
+    </table></div></div>`}
+  `;
+}
+
+async function respondDeal(id, status) {
+  try {
+    await apiFetch('/deals/'+id, { method:'PATCH', body: JSON.stringify({ status }) });
+    state.deals = state.deals.map(d=>d.id===id?{...d,status}:d);
+    renderFarmerDeals();
+
+  } catch(e) { alert('Failed: '+e.message); }
+}
+
+function renderStorageGuide() {
+  const fruits = Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Fruit');
+  const vegs   = Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Vegetable');
+  
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>📦 Storage Guide</h2></div>
+    <div class="hero-banner"><div class="inner"><h2>Storage Condition Reference</h2><p>Optimal conditions to minimize post-harvest losses for ${Object.keys(PRODUCE_DB).length} crops.</p></div></div>
+    <h3 style="color:var(--forest);margin-bottom:1rem;font-family:'Lora',serif;">🍎 Fruits</h3>
+    <div class="produce-grid" style="margin-bottom:2rem">${fruits.map(([name,info])=>produceCard(name,info)).join('')}</div>
+    <h3 style="color:var(--forest);margin-bottom:1rem;font-family:'Lora',serif;">🥦 Vegetables</h3>
+    <div class="produce-grid">${vegs.map(([name,info])=>produceCard(name,info)).join('')}</div>
+  `;
+}
