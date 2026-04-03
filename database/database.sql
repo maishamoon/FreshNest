@@ -154,9 +154,35 @@ INSERT INTO produce_conditions (produce_name, category, emoji, storage_temp, sto
 ('Bitter Gourd', 'Vegetable', '🫑', '10–12°C', '85–90%', 7,  'Year-round', 'Store in cool and shaded area. Avoid direct sunlight.'),
 ('Pumpkin',      'Vegetable', '🎃', '10–13°C', '60–70%', 60, 'Year-round', 'Keep stem intact. Store in dry area with good ventilation.');
 
+-- ── Demo Users (bcrypt hash for "pass123") ────────────────
+-- Hash: $2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i
+INSERT INTO users (name, email, password_hash, role, location, vehicle_type) VALUES
+('Admin User',      'admin@harvest.bd',  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'admin',     '',          ''),
+('Rahim Uddin',     'rahim@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Rajshahi',  ''),
+('Sufia Begum',     'sufia@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Mymensingh',''),
+('Karim Transport', 'karim@trans.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'transport', '',          'Refrigerated Truck'),
+('Dhaka Fresh Ltd', 'dhaka@fresh.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer',    'Dhaka',     ''),
+('Chittagong Grocers', 'chittagong@fresh.bd', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer', 'Chittagong', '');
+
+
 
 
 -- SAMPLE DATA (password: demo1234)
 INSERT INTO users (name, email, password_hash, role, location) VALUES
 ('Rahim Uddin', 'rahim@demo.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'farmer', 'Rajshahi'),
 ('Karim Transport', 'karim@demo.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'transport', 'Dhaka');
+
+-- ── Sample Produce Listings ────────────────────────────────
+INSERT INTO produce (farmer_id, farmer_name, name, category, emoji, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips, status) VALUES
+(2, 'Rahim Uddin', 'Mango',   'Fruit',     '🥭', 500,  'kg',    '2026-01-20', 'Rajshahi',   '13–15°C',  '85–90%',  14, 'Store away from ethylene-sensitive produce. Ripen at room temperature.', 'Available'),
+(3, 'Sufia Begum', 'Tomato',  'Vegetable', '🍅', 300,  'kg',    '2026-01-22', 'Mymensingh', '10–13°C',  '85–90%',  10, 'Store stem-up. Never refrigerate fully ripe tomatoes.',                'Available'),
+(2, 'Rahim Uddin', 'Potato',  'Vegetable', '🥔', 1000, 'kg',    '2026-01-15', 'Rajshahi',   '4–7°C',    '85–90%',  60, 'Store in dark, dry, cool place. Avoid light to prevent greening.',     'Available'),
+(3, 'Sufia Begum', 'Cauliflower','Vegetable','🥦',150, 'kg',    '2026-01-25', 'Mymensingh', '0–1°C',    '90–95%',  14, 'Store wrapped to prevent discoloration. Keep very cold.',               'Available');
+
+-- ── Sample Transport Request ──────────────────────────────
+INSERT INTO transport_requests (farmer_id, farmer_name, product_id, produce_name, pickup_location, destination, pickup_date, quantity, notes, status) VALUES
+(2, 'Rahim Uddin', 1, 'Mango', 'Rajshahi', 'Dhaka Kawran Bazar', '2026-02-01', '500 kg', 'Refrigerated vehicle required. Handle with care.', 'Open');
+
+-- ── Sample Deal ───────────────────────────────────────────
+INSERT INTO deals (dealer_id, dealer_name, farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message, status) VALUES
+(5, 'Dhaka Fresh Ltd', 2, 'Rahim Uddin', 1, 'Mango', '200 kg', 80.00, 'We are interested in a weekly supply arrangement for the season.', 'Pending');
