@@ -76,216 +76,122 @@ async function query(sql, params = []) {
 }
 
 
-// ─── DATABASE CONNECTION ─────────────────────────────────
-const pool = mysql.createPool({
-  host:     process.env.DB_HOST     || 'localhost',
-  user:     process.env.DB_USER     || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME     || 'harvestlink_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-});
 
-async function query(sql, params = []) {
-  const [rows] = await pool.execute(sql, params);
-  return rows;
-}
-
-// ─── JWT AUTH MIDDLEWARE ─────────────────────────────────
-
-function auth(roles = []) {
+/// ─── AUTH MIDDLEWARE ──────────────────────────────────────────────────────────
+function auth(requiredRoles = []) {
   return (req, res, next) => {
     const header = req.headers['authorization'];
-    if (!header) return res.status(401).json({ success: false, error: 'No token. Please login.' });
-
+    if (!header) return res.status(401).json({ error: 'No token provided.' });
+    const token = header.split(' ')[1];
     try {
-      const token   = header.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'harvestlink_secret');
       req.user = decoded;
-
-      if (roles.length && !roles.includes(req.user.role)) {
-        return res.status(403).json({ success: false, error: 'Access denied for your role.' });
+      if (requiredRoles.length && !requiredRoles.includes(req.user.role)) {
+        return res.status(403).json({ error: 'Access denied for your role.' });
       }
       next();
     } catch {
-      return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
+      return res.status(401).json({ error: 'Invalid or expired token.' });
     }
   };
 }
-// ═════════════════════════════════════════════════════════
-//  AUTH ROUTES
- // POST /api/auth/register
 
-   app.post('/api/auth/login', async (req, res) => {
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function success(res, data, status = 200) {
+  return res.status(status).json({ success: true, data });
+}
+function error(res, msg, status = 400) {
+  return res.status(status).json({ success: false, error: msg });
+}
+
+// ─── AUTH ROUTES ─────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/auth/register
+ * Body: { name, email, password, role, location?, vehicle? }
+ */
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password, role, location = '', vehicle = '' } = req.body;
 
-    if (!email || !password)
-      return res.status(400).json({ success: false, error: 'Email and password required.' });
+    // Validation
+    if (!name || !email || !password || !role) return error(res, 'All fields required.');
+    if (!['farmer', 'transport', 'dealer'].includes(role)) return error(res, 'Invalid role.');
+    if (password.length < 6) return error(res, 'Password must be at least 6 characters.');
 
-    const users = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
-    if (!users.length)
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    // Check duplicate
+    const existing = await query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length) return error(res, 'Email already registered.');
 
-    const user    = users[0];
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch)
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
-
-// Hash password — never store plain text
+    // Hash + insert
     const hash = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
-      'INSERT INTO users (name, email, password_hash, role, location) VALUES (?, ?, ?, ?, ?)',
-      [name, email, hash, role, location]
+      'INSERT INTO users (name, email, password_hash, role, location, vehicle_type) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, email, hash, role, location, vehicle]
     );
 
-    res.status(201).json({
-      success: true,
-      data: { id: result.insertId, name, email, role }
-    });
+// Fetch the newly created user to return complete data (with created_at timestamp)
+    const newUser = await query('SELECT id, name, email, role, location, vehicle_type, created_at FROM users WHERE id = ?', [result.insertId]);
+    if (newUser.length) {
+      success(res, newUser[0], 201);
+    } else {
+      success(res, { id: result.insertId, name, email, role, location, vehicle, created_at: new Date().toISOString() }, 201);
+    }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: 'Registration failed.' });
+    error(res, 'Registration failed.', 500);
   }
 });
-
-  //POST /api/auth/login
-app.post('/api/auth/login', async (req, res) => {
+/**
+ * POST /api/auth/login
+ * Body: { email, password }
+ */
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password)
-      return res.status(400).json({ success: false, error: 'Email and password required.' });
+    if (!email || !password) return error(res, 'Email and password required.');
 
     const users = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
-    if (!users.length)
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    if (!users.length) return error(res, 'Invalid credentials.', 401);
 
-    const user    = users[0];
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch)
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    const user = users[0];
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) return error(res, 'Invalid credentials.', 401);
 
-    // Sign JWT — valid for 7 days
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'harvestlink_secret',
       { expiresIn: '7d' }
     );
 
-    res.json({
-      success: true,
-      data: {
-        token,
-        user: { id: user.id, name: user.name, email: user.email, role: user.role, location: user.location }
-      }
+    success(res, {
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, location: user.location, vehicle: user.vehicle_type }
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: 'Login failed.' });
+    error(res, 'Login failed.', 500);
   }
 });
-// ═════════════════════════════════════════════════════════
-// PRODUCE ROUTES (Feature 1 — Farmer only)
-// ═════════════════════════════════════════════════════════
-// PRODUCE ROUTES
 
-app.get('/api/produce', auth(), async (req, res) => {
+  // ─── USER ROUTES ─────────────────────────────────────────────────────────────
+
+/** GET /api/users — Admin only */
+app.get('/api/users', auth(['admin']), async (req, res) => {
   try {
-    let rows;
-    if (req.user.role === 'farmer') {
-      rows = await query('SELECT * FROM produce WHERE farmer_id = ? ORDER BY listed_at DESC', [req.user.id]);
-    } else {
-      rows = await query("SELECT * FROM produce WHERE status = 'Available' ORDER BY listed_at DESC");
-    }
-    res.json({ success: true, data: rows });
+    const users = await query('SELECT id, name, email, role, location, vehicle_type, created_at FROM users ORDER BY created_at DESC');
+    success(res, users);
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to fetch produce.' });
+    error(res, 'Failed to fetch users.', 500);
   }
 });
 
-app.post('/api/produce', auth(['farmer']), async (req, res) => {
+/** GET /api/users/me */
+app.get('/api/users/me', auth(), async (req, res) => {
   try {
-    const { name, quantity, harvest_date, location } = req.body;
-
-    if (!name || !quantity || !harvest_date || !location) {
-      return res.status(400).json({ success: false });
-    }
-
-    const [result] = await pool.execute(
-      `INSERT INTO produce (farmer_id, farmer_name, name, quantity, harvest_date, location, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'Available')`,
-      [req.user.id, req.user.name, name, quantity, harvest_date, location]
-    );
-
-    res.json({ success: true, id: result.insertId });
+    const [user] = await query('SELECT id, name, email, role, location, vehicle_type, created_at FROM users WHERE id = ?', [req.user.id]);
+    success(res, user);
   } catch (err) {
-    res.status(500).json({ success: false });
+    error(res, 'Failed to fetch profile.', 500);
   }
 });
-// ═════════════════════════════════════════════════════════
-//  TRANSPORT ROUTES  (Feature 2 — Farmer only)
-// ═════════════════════════════════════════════════════════
-
-app.get('/api/transport', auth(), async (req, res) => {
-  try {
-    let rows;
-    if (req.user.role === 'farmer') {
-      rows = await query('SELECT * FROM transport_requests WHERE farmer_id = ? ORDER BY created_at DESC', [req.user.id]);
-    } else {
-      rows = await query('SELECT * FROM transport_requests ORDER BY created_at DESC');
-    }
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to fetch transport requests.' });
-  }
-});
-app.post('/api/transport', auth(['farmer']), async (req, res) => {
-  try {
-    const { produce_name, destination, pickup_location = '', quantity = '', pickup_date = null, notes = '' } = req.body;
-
-    if (!produce_name || !destination)
-      return res.status(400).json({ success: false, error: 'produce_name and destination are required.' });
-
-    const [result] = await pool.execute(
-      `INSERT INTO transport_requests
-       (farmer_id, farmer_name, produce_name, pickup_location, destination, quantity, pickup_date, notes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Open')`,
-      [req.user.id, req.user.name, produce_name, pickup_location, destination, quantity, pickup_date, notes]
-    );
-
-    const [newItem] = await query('SELECT * FROM transport_requests WHERE id = ?', [result.insertId]);
-    res.status(201).json({ success: true, data: newItem });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to create request.' });
-  }
-});
-
-app.patch('/api/transport/:id', auth(['farmer']), async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    if (status !== 'Cancelled')
-      return res.status(400).json({ success: false, error: 'Farmers can only cancel requests.' });
-
-    const items = await query('SELECT * FROM transport_requests WHERE id = ?', [req.params.id]);
-
-    if (!items.length)
-      return res.status(404).json({ success: false, error: 'Request not found.' });
-
-    if (items[0].farmer_id !== req.user.id)
-      return res.status(403).json({ success: false, error: 'Not your request.' });
-
-    await query('UPDATE transport_requests SET status = ? WHERE id = ?', ['Cancelled', req.params.id]);
-
-    res.json({ success: true, data: { message: 'Request cancelled.' } });
-
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to cancel.' });
-  }
-});
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-
-module.exports = app;
