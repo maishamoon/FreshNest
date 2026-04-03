@@ -169,7 +169,6 @@ async function doLogin() {
     const data = await apiFetch('/auth/login', { method:'POST', body: JSON.stringify({ email, password: pass }) });
     state.token = data.token;
     state.user  = { ...data.user, vehicle: data.user.vehicle||'' };
-    // persist session
     try { localStorage.setItem('hl_token', state.token); localStorage.setItem('hl_user', JSON.stringify(state.user)); } catch(_){}
     await loadAll();
     initApp();
@@ -188,8 +187,39 @@ async function doLogin() {
     showAlert('auth-alert', e.message || 'Invalid email or password.', 'danger');
   }
 }
+
 function toggleRoleFields() {
   const r = document.getElementById('reg-role').value;
   document.getElementById('field-location').style.display = r!=='transport'?'block':'none';
   document.getElementById('field-vehicle').style.display  = r==='transport'?'block':'none';
+}
+async function doRegister() {
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const role=document.getElementById('reg-role').value;
+  if(!name||!email||!pass) return showAlert('auth-alert','All fields are required.','danger');
+  if(pass.length < 6) return showAlert('auth-alert','Password must be at least 6 characters.','danger');
+  const location = document.getElementById('reg-location')?.value||'';
+  const vehicle  = document.getElementById('reg-vehicle')?.value||'';
+  try {
+    showAlert('auth-alert','Registering...','info');
+    const newUserData = await apiFetch('/auth/register', { method:'POST', body: JSON.stringify({ name, email, password: pass, role, location, vehicle }) });
+    const newUser = normUser(newUserData);
+    showAlert('auth-alert','Registration successful! You can now sign in.','success');
+    switchAuthTab('login');
+    document.getElementById('login-email').value = email;
+    if (state.user && state.user.role === 'admin' && state.token && state.token !== 'demo-token') {
+      state.users.push(newUser);
+      try {
+        const users = await apiFetch('/users');
+        state.users = users.map(normUser);
+      } catch(err) {
+        console.warn('Could not refresh full admin users list:', err);
+      }
+      if (state.activeNav === 'users') renderAdminUsers();
+    }
+  } catch(e) {
+    showAlert('auth-alert', e.message || 'Registration failed.', 'danger');
+  }
 }
