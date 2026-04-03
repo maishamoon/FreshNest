@@ -473,3 +473,10 @@ openModal(`<div class="modal">
   </div>`);
   updateStorageTip();
 }
+function updateStorageTip() {
+  const name = document.getElementById('ap-name')?.value;
+  const info = PRODUCE_DB[name];
+  if(info && document.getElementById('storage-tip-box')) {
+    document.getElementById('storage-tip-box').innerHTML = `💡 <strong>${name}:</strong> Store at ${info.temp} · ${info.humidity} humidity · Fresh for <strong>${info.freshDays} days</strong>.<br><em>${info.tips}</em>`;
+  }
+}
