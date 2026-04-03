@@ -330,3 +330,22 @@ app.patch('/api/transport/:id', auth(['farmer', 'transport', 'admin']), async (r
     error(res, 'Failed to update transport request.', 500);
   }
 });
+
+// ─── DEALS ROUTES ─────────────────────────────────────────────────────────────
+
+/** GET /api/deals */
+app.get('/api/deals', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'farmer') {
+      rows = await query('SELECT * FROM deals WHERE farmer_id = ? ORDER BY created_at DESC', [req.user.id]);
+    } else if (req.user.role === 'dealer') {
+      rows = await query('SELECT * FROM deals WHERE dealer_id = ? ORDER BY created_at DESC', [req.user.id]);
+    } else {
+      rows = await query('SELECT * FROM deals ORDER BY created_at DESC');
+    }
+    success(res, rows);
+  } catch (err) {
+    error(res, 'Failed to fetch deals.', 500);
+  }
+});
