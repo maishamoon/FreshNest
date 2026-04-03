@@ -502,3 +502,12 @@ if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','
     showAlert('add-prod-alert', e.message || 'Failed to add produce.', 'danger');
   }
 }
+async function removeProduct(id) {
+  try {
+    await apiFetch('/produce/'+id, { method:'DELETE' });
+    state.products = state.products.filter(p=>p.id!==id);
+    renderMyProducts();
+  } catch(e) {
+    showAlert('prod-alert', e.message || 'Failed to remove.', 'danger');
+  }
+}
