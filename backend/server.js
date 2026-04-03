@@ -263,3 +263,21 @@ app.patch('/api/produce/:id/status', auth(['farmer', 'admin']), async (req, res)
     error(res, 'Failed to update status.', 500);
   }
 });
+// ─── TRANSPORT ROUTES ─────────────────────────────────────────────────────────
+
+/** GET /api/transport */
+app.get('/api/transport', auth(), async (req, res) => {
+  try {
+    let rows;
+    if (req.user.role === 'farmer') {
+      rows = await query('SELECT * FROM transport_requests WHERE farmer_id = ? ORDER BY created_at DESC', [req.user.id]);
+    } else if (req.user.role === 'transport') {
+      rows = await query("SELECT * FROM transport_requests WHERE status = 'Open' OR assigned_to = ? ORDER BY created_at DESC", [req.user.id]);
+    } else {
+      rows = await query('SELECT * FROM transport_requests ORDER BY created_at DESC');
+    }
+    success(res, rows);
+  } catch (err) {
+    error(res, 'Failed to fetch transport requests.', 500);
+  }
+});
