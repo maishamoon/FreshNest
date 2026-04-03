@@ -423,3 +423,27 @@ app.post('/api/failures', auth(['transport']), async (req, res) => {
     error(res, 'Failed to report failure.', 500);
   }
 });
+
+// ─── HEALTH ───────────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString(), service: 'HarvestLink BD API' });
+});
+
+// ─── 404 HANDLER ─────────────────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
+});
+
+// ─── ERROR HANDLER ────────────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.message);
+  res.status(500).json({ error: 'Internal server error.' });
+});
+
+// ─── START ────────────────────────────────────────────────────────────────────
+app.listen(PORT, () => {
+  console.log(`✅ HarvestLink BD API running on http://localhost:${PORT}`);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+module.exports = app;
