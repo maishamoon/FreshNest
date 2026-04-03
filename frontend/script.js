@@ -662,3 +662,23 @@ function renderStorageGuide() {
     <div class="produce-grid">${vegs.map(([name,info])=>produceCard(name,info)).join('')}</div>
   `;
 }
+
+function produceCard(name, info) {
+
+  return `<div class="produce-card">
+
+    <div class="produce-card-header" style="background:${info.cat==='Fruit'?'linear-gradient(135deg,#FEF9E7,#FDEBD0)':'linear-gradient(135deg,#E9F7EF,#D5F5E3)'}">
+      <span class="produce-emoji">${info.emoji}</span>
+      <div class="produce-name">${name}</div>
+      <div class="produce-meta">${info.cat} · ${info.harvestMonths}</div>
+    </div>
+
+    <div class="produce-card-body">
+
+      <div class="produce-info-row"><span class="produce-info-label">🌡️ Temperature</span><span class="produce-info-val">${info.temp}</span></div>
+      <div class="produce-info-row"><span class="produce-info-label">💧 Humidity</span><span class="produce-info-val">${info.humidity}</span></div>
+      <div class="produce-info-row"><span class="produce-info-label">🗓️ Fresh Duration</span><span class="produce-info-val">${info.freshDays} days</span></div>
+      <div class="storage-tip" style="margin-top:8px;margin-bottom:0">${info.tips}</div>
+    </div>
+  </div>`;
+}
