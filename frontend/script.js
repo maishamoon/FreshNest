@@ -427,3 +427,41 @@ function renderFarmerDashboard() {
     </div>
   `;
 }
+
+function openAddProduct() {
+  
+  const myP = state.products.filter(p=>p.farmerId===state.user.id);
+  
+openModal(`<div class="modal">
+    <div class="modal-header"><span class="modal-title">🌿 Add New Produce</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div id="add-prod-alert"></div>
+      
+      <div class="form-group">
+        <label class="form-label">Produce Type</label>
+        <select class="form-control" id="ap-name" onchange="updateStorageTip()">
+          <optgroup label="🍎 Fruits">${Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Fruit').map(([k,v])=>`<option>${k}</option>`).join('')}</optgroup>
+          <optgroup label="🥦 Vegetables">${Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Vegetable').map(([k,v])=>`<option>${k}</option>`).join('')}</optgroup>
+        
+        
+          </select>
+      </div>
+      <div id="storage-tip-box" class="storage-tip">💡 Recommended: 13–15°C · 85–90% humidity · Fresh for 14 days. Store away from ethylene-sensitive produce.</div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Quantity</label><input class="form-control" id="ap-qty" type="number" placeholder="e.g. 500"></div>
+        <div class="form-group"><label class="form-label">Unit</label>
+          
+        <select class="form-control" id="ap-unit"><option>kg</option><option>ton</option><option>pieces</option><option>crate</option></select>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Harvest Date</label><input class="form-control" type="date" id="ap-date" value="${today()}"></div>
+        <div class="form-group"><label class="form-label">Storage Location</label><input class="form-control" id="ap-loc" placeholder="e.g. Rajshahi" value="${state.user.location||''}"></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="submitAddProduct()">Add to Listing</button>
+    </div>
+    up22up
+  </div>`);
+  updateStorageTip();
+}
