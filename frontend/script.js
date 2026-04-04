@@ -183,6 +183,7 @@ function logMissingFields(entity, items, fields) {
 }
 
 async function loadAll() {
+  console.log('Fetching')
   const [products, trans, deals, failures] = await Promise.all([
     apiFetch('/produce').then(r => r.map(normProduce)),
     apiFetch('/transport').then(r => r.map(normTrans)),

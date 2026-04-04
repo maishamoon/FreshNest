@@ -273,6 +273,7 @@ app.get('/api/users/me', auth(), async (req, res) => {
 /** GET /api/produce — All available (dealers/admin) or own (farmers) */
 app.get('/api/produce', auth(), async (req, res) => {
   try {
+    console.log(`User ${req.user.id} (${req.user.role}) fetching produce...`);
     let rows;
     if (req.user.role === 'farmer') {
       rows = await query('SELECT * FROM produce WHERE farmer_id = ? ORDER BY listed_at DESC', [req.user.id]);
@@ -289,6 +290,7 @@ app.get('/api/produce', auth(), async (req, res) => {
 
 /** POST /api/produce — Farmer only */
 app.post('/api/produce', auth(['farmer']), async (req, res) => {
+  console.log(`User ${req.user.id} (${req.user.role}) adding produce...`);
   try {
     const { name, category, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips, expected_price_per_kg } = req.body;
     if (!name || !quantity || !harvest_date || !location) return error(res, 'Required fields missing.');
