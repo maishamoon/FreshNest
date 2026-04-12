@@ -87,3 +87,17 @@ function normDeal(d)    { return { ...d, id: toId(d.id), dealerId: toId(d.dealer
     productId: toId(d.product_id || d.productId), quantity: d.quantity_requested || d.quantity, 
     expectedPrice: d.expected_price_per_kg, price: d.offered_price_per_kg,
     msg: d.message, created: (d.created_at||'').slice(0,10) }; }
+  
+function normFail(f)    { 
+  let alts = [];
+  try {
+    if (typeof f.alternatives === 'string') {
+      alts = JSON.parse(f.alternatives || '[]');
+    } else if (Array.isArray(f.alternatives)) {
+      alts = f.alternatives;
+    }
+  } catch (e) { alts = []; }
+  return { ...f, id: toId(f.id), transporterId: toId(f.transporter_id || f.transporterId), transporterName: f.transporter_name || f.transporterName,
+    requestId: toId(f.transport_request_id || f.requestId), product: f.produce_name || f.product,
+    alternatives: alts,
+    reported: (f.reported_at||'').slice(0,10) }; }  
