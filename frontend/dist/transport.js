@@ -150,3 +150,55 @@ function renderBrowseRequests() {
     </table></div></div>`}
   `;
 }
+
+async function acceptJob(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
+    await refreshDataAndRender(state.activeNav || 'offers');
+    showAlert('offer-alert','Job accepted.','success');
+  } catch(e) {
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+      renderBrowseRequests();
+      showAlert('offer-alert','Job accepted locally!','success');
+      return;
+    }
+    handleApiError(e, 'offer-alert', 'Failed to accept job.');
+  }
+}
+
+function renderMyJobs() {
+  const mine = state.trans.filter(t=>t.assignedTo===state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>My Jobs</h2></div>
+    <div id="job-alert"></div>
+    ${mine.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🗓️</div><p>No accepted jobs yet. Browse open requests.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${mine.map(t=>`<tr>
+        <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
+        <td>${t.pickup} → ${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td>${badge(t.status)}</td>
+        <td>${t.status==='Accepted'?`<button class="btn btn-sm btn-primary" onclick="completeJob('${t.id}')">Delivered</button>`:'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
+  `;
+}
+
+async function completeJob(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Completed' }) });
+    await refreshDataAndRender(state.activeNav || 'myjobs');
+    showAlert('job-alert','Job completed.','success');
+  } catch(e) {
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Completed'}:t);
+      renderMyJobs();
+      showAlert('job-alert','Job completed locally!','success');
+      return;
+    }
+    handleApiError(e, 'job-alert', 'Failed to complete job.');
+  }
+}
