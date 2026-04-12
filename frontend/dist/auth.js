@@ -29,3 +29,26 @@ const ROLE_CFG = {
     { id:'failures',  label:'Failures',            icon:'⚠️' },
   ]},
 };
+function initApp() {
+  document.getElementById('auth-page').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const u = state.user;
+  const cfg = ROLE_CFG[u.role];
+  
+  const avatar = u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('sidebar-user-info').innerHTML = `
+    <div class="sidebar-user-avatar" style="background:${cfg.bg}">${avatar}</div>
+    <div class="sidebar-user-name">${u.name}</div>
+    <div class="sidebar-user-role" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${cfg.icon} ${u.role.charAt(0).toUpperCase()+u.role.slice(1)}</div>
+  `;
+
+  document.getElementById('sidebar-nav').innerHTML = cfg.navItems.map(item=>`
+    <div class="nav-item" id="nav-${item.id}" onclick="navigate('${item.id}')">
+      <span class="nav-icon">${item.icon}</span>${item.label}
+    </div>
+  `).join('');
+
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-BD',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  navigate(cfg.navItems[0].id);
+}
