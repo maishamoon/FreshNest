@@ -41,3 +41,21 @@ function renderAdminProducts() {
   `;
 }
 
+function renderAdminTransport() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>All Transport Requests (${state.trans.length})</h2></div>
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Farmer</th><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Transporter</th><th>Status</th></tr></thead>
+      <tbody>${state.trans.map(t=>`<tr>
+        <td>${t.farmerName}</td>
+        <td>${produceEmoji(t.product)} ${t.product}</td>
+        <td>${t.pickup} → ${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td>${t.transporterName||'<span style="color:var(--mist)">Unassigned</span>'}</td>
+        <td>${badge(t.status)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  `;
+}
+
