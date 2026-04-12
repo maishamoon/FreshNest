@@ -73,5 +73,27 @@ function renderAdminDeals() {
     </table></div></div>
   `;
 }
-
+function renderAdminFailures() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Delivery Failures (${state.failures.length})</h2></div>
+    ${state.failures.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">✅</div><p>No delivery failures reported.</p></div></div>`:''}
+    ${state.failures.map(f=>`
+      <div class="failure-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700;color:var(--amber);font-size:1.05rem">${produceEmoji(f.product)} ${f.product}</div>
+            <div style="font-size:.85rem;color:var(--slate);margin-top:3px">${f.transporterName} - Route: ${f.route}</div>
+            <div style="font-size:.85rem;margin-top:5px"><strong>Reason:</strong> ${f.reason} - <strong>Date:</strong> ${f.reported}</div>
+            ${f.notes?`<div style="font-size:.82rem;color:var(--slate);margin-top:3px;font-style:italic">"${f.notes}"</div>`:''}
+          </div>
+          <span class="badge badge-gold">Failure</span>
+        </div>
+        <div class="alternatives-box">
+          <h4>Alternatives Suggested</h4>
+          ${f.alternatives.map(a=>`<div class="alt-item">${a}</div>`).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
 
