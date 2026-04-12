@@ -52,3 +52,4 @@ function initApp() {
 
   navigate(cfg.navItems[0].id);
 }
+
