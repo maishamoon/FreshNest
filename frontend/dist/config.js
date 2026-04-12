@@ -48,3 +48,42 @@ const SEED_TRANS = [
 const SEED_DEALS = [
   { id:'d1', dealerId:'deal1', dealerName:'Dhaka Fresh Ltd', farmerId:'farm1', farmerName:'Rahim Uddin', product:'Mango', productId:'p1', quantity:'200 kg', price:'80', status:'Pending', created:'2026-01-26' },
 ];
+
+const DEMO_MODE = window.DEMO_MODE_ENABLED === true || localStorage.getItem('demo_mode') === 'true';
+const API_BASE = window.API_BASE || 'http://localhost:5000/api';
+
+function today() { return new Date().toISOString().slice(0,10); }
+function toId(value) { return value === null || value === undefined ? '' : String(value); }
+function isDemoAllowed(role) { return DEMO_MODE === true && role === 'admin'; }
+function isDemo() { return DEMO_MODE === true && state.user && state.user.role === 'admin'; }
+
+function normUser(u)    { return { ...u, id: toId(u.id), vehicle: u.vehicle_type || u.vehicle || '', joined: (u.created_at || u.joined || '').slice(0,10) }; }
+function normProduce(p) {
+  const db = PRODUCE_DB[p.name] || {};
+  return { ...p, id: toId(p.id), farmerId: toId(p.farmer_id || p.farmerId), farmerName: p.farmer_name || p.farmerName,
+    harvestDate: p.harvest_date, temp: p.storage_temp||db.temp||'',
+    humidity: p.storage_humidity||db.humidity||'', freshDays: p.fresh_days||db.freshDays||7,
+    tips: p.storage_tips||db.tips||'', listed: (p.listed_at||'').slice(0,10),
+    emoji: p.emoji||db.emoji||'*', category: p.category||db.cat||'Other',
+    expectedPrice: p.expected_price_per_kg };
+}
+
+function normTrans(t)   { return { 
+    ...t, 
+    id: toId(t.id),
+    farmerId: toId(t.farmer_id || t.farmerId), 
+    farmerName: t.farmer_name || '-',
+    product: t.produce_name || '-', 
+    productId: toId(t.product_id || t.productId), 
+    pickup: t.pickup_location || '-',
+    date: t.pickup_date, 
+    assignedTo: toId(t.assigned_to || t.assignedTo), 
+    transporterName: t.transporter_name || '-',
+    created: (t.created_at||'').slice(0,10) 
+}; }
+    
+function normDeal(d)    { return { ...d, id: toId(d.id), dealerId: toId(d.dealer_id || d.dealerId), dealerName: d.dealer_name || d.dealerName,
+    farmerId: toId(d.farmer_id || d.farmerId), farmerName: d.farmer_name || d.farmerName, product: d.produce_name || d.product,
+    productId: toId(d.product_id || d.productId), quantity: d.quantity_requested || d.quantity, 
+    expectedPrice: d.expected_price_per_kg, price: d.offered_price_per_kg,
+    msg: d.message, created: (d.created_at||'').slice(0,10) }; }
