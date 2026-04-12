@@ -109,3 +109,60 @@ function renderDealerDashboard() {
     </div>
   `;
 }
+
+function renderBrowseRequests() {
+  const open = state.trans.filter(t=>t.status==='Open');
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>Browse Requests</h2></div>
+    <div id="offer-alert"></div>
+    ${open.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">📋</div><p>No open requests at the moment.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Farmer</th><th>Produce</th><th>Pickup</th><th>Destination</th><th>Date</th><th>Qty</th><th>Notes</th><th>Action</th></tr></thead>
+      <tbody>${open.map(t=>`<tr>
+        <td><strong>${t.farmerName}</strong></td>
+        <td>${produceEmoji(t.product)} ${t.product}</td>
+        <td>${t.pickup}</td><td>${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td style="max-width:150px;font-size:.8rem;color:var(--slate)">${t.notes||'—'}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="acceptJob('${t.id}')">Accept</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
+  `;
+}
+
+async function acceptJob(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
+    await refreshDataAndRender(state.activeNav || 'offers');
+    showAlert('offer-alert','Job accepted.','success');
+  } catch(e) {
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+      renderBrowseRequests();
+      showAlert('offer-alert','Job accepted locally!','success');
+      return;
+    }
+    handleApiError(e, 'offer-alert', 'Failed to accept job.');
+  }
+}
+
+function renderMyJobs() {
+  const mine = state.trans.filter(t=>t.assignedTo===state.user.id);
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>My Jobs</h2></div>
+    <div id="job-alert"></div>
+    ${mine.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🗓️</div><p>No accepted jobs yet. Browse open requests.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${mine.map(t=>`<tr>
+        <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
+        <td>${t.pickup} → ${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td>${badge(t.status)}</td>
+        <td>${t.status==='Accepted'?`<button class="btn btn-sm btn-primary" onclick="completeJob('${t.id}')">Delivered</button>`:'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
+  `;
+}
