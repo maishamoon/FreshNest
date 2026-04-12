@@ -58,4 +58,19 @@ function renderAdminTransport() {
     </table></div></div>
   `;
 }
+function renderAdminDeals() {
+  document.getElementById('page-body').innerHTML = `
+    <div class="section-header"><h2>All Deals (${state.deals.length})</h2></div>
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Farmer</th><th>Dealer</th><th>Qty</th><th>Price</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>${state.deals.map(d=>`<tr>
+        <td>${produceEmoji(d.product)} ${d.product}</td>
+        <td>${d.farmerName}</td><td>${d.dealerName}</td>
+        <td>${d.quantity}</td><td>Taka${d.price}/kg</td>
+        <td>${d.created}</td><td>${badge(d.status)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  `;
+}
 
