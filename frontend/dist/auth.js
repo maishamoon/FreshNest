@@ -53,3 +53,24 @@ function initApp() {
   navigate(cfg.navItems[0].id);
 }
 
+function navigate(id) {
+  state.activeNav = id;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('nav-'+id);
+  if(el) el.classList.add('active');
+  const cfg = ROLE_CFG[state.user.role];
+  const navItem = cfg.navItems.find(n=>n.id===id);
+  document.getElementById('topbar-title').textContent = navItem?.label||'';
+  const body = document.getElementById('page-body');
+  body.innerHTML = '';
+
+  const renders = {
+    farmer: { dashboard:renderFarmerDashboard, products:renderMyProducts, transport:renderTransportReqs, deals:renderFarmerDeals, storage:renderStorageGuide },
+    transport: { dashboard:renderTransportDashboard, offers:renderBrowseRequests, myjobs:renderMyJobs, failures:renderFailures },
+    dealer: { dashboard:renderDealerDashboard, browse:renderBrowseProduce, mydeals:renderMyDeals },
+    admin: { dashboard:renderAdminDashboard, users:renderAdminUsers, products:renderAdminProducts, transport:renderAdminTransport, deals:renderAdminDeals, failures:renderAdminFailures },
+  };
+
+  const fn = renders[state.user.role]?.[id];
+  if(fn) fn();
+}
