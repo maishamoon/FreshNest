@@ -68,3 +68,44 @@ function renderTransportDashboard() {
     </div>
   `;
 }
+
+function renderDealerDashboard() {
+  const u = state.user;
+  const myD = state.deals.filter(d=>d.dealerId===u.id);
+  const avail = state.products.filter(p=>p.status==='Available');
+  const avgPrice = myD.length > 0 ? (myD.reduce((sum, d) => sum + (d.price || 0), 0) / myD.length).toFixed(1) : 0;
+
+  document.getElementById('page-body').innerHTML = `
+    <div class="hero-banner" style="background:linear-gradient(135deg,#1A5276,#2471A3,#2980B9)">
+      <div class="inner"><h2>Welcome, ${u.name}!</h2><p>Discover fresh produce from farmers across Bangladesh. Make deals and build direct supply chains.</p></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card green" data-icon="🛒"><div class="stat-value">${avail.length}</div><div class="stat-label">Available Items</div><div class="stat-sub">Ready to buy</div></div>
+      <div class="stat-card gold" data-icon="🤝"><div class="stat-value">${myD.length}</div><div class="stat-label">Total Deals</div><div class="stat-sub">All time</div></div>
+      <div class="stat-card forest" data-icon="✅"><div class="stat-value">${myD.filter(d=>d.status==='Accepted').length}</div><div class="stat-label">Accepted Deals</div><div class="stat-sub">Confirmed</div></div>
+      <div class="stat-card sage" data-icon="💰"><div class="stat-value">${avgPrice}</div><div class="stat-label">Avg Offered</div><div class="stat-sub">Per kg average</div></div>
+    </div>
+    ${myD.filter(d=>d.status==='Pending').length > 0 ? `<div class="alert alert-info">You have <strong>${myD.filter(d=>d.status==='Pending').length} pending offer(s)</strong> awaiting farmer response.</div>` : ''}
+    <div class="card">
+      <div class="card-header"><div class="card-title">Featured Produce</div><button class="btn btn-sm btn-primary" onclick="navigate('browse')">Browse All</button></div>
+      <div class="produce-grid" style="padding:1.5rem;gap:1rem;">
+      ${avail.slice(0,6).map(p=>`
+          <div class="produce-card" onclick="openDealModal('${p.id}')" style="cursor:pointer">
+            <div class="produce-card-header" style="background:${p.category==='Fruit'?'linear-gradient(135deg,#FEF9E7,#FDEBD0)':'linear-gradient(135deg,#E9F7EF,#D5F5E3)'}">
+              <span class="badge ${p.category==='Fruit'?'badge-gold':'badge-green'}" style="position:absolute;top:10px;left:12px">${p.category}</span>
+              <span class="produce-emoji">${p.emoji||'🌿'}</span>
+              <div class="produce-name">${p.name}</div>
+              <div class="produce-meta">by ${p.farmerName} · ${p.location}</div>
+            </div>
+            <div class="produce-card-body">
+              <div class="produce-info-row"><span class="produce-info-label">Stock</span><span class="produce-info-val">${p.quantity} ${p.unit}</span></div>
+              ${p.expectedPrice ? `<div class="produce-info-row" style="background:var(--foam);padding:4px 6px;border-radius:4px"><span class="produce-info-label">Ask</span><span class="produce-info-val" style="font-weight:600">${p.expectedPrice}/kg</span></div>` : ''}
+              <div class="produce-info-row"><span class="produce-info-label">Fresh for</span><span class="produce-info-val">${p.freshDays} days</span></div>
+              <div style="margin-top:10px"><button class="btn btn-gold btn-full">Make Offer</button></div>
+            </div>
+          </div>
+          `).join('')||'<p style="color:var(--mist);padding:1rem">No produce available.</p>'}
+      </div>
+    </div>
+  `;
+}
