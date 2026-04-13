@@ -68,3 +68,76 @@ function updateStorageTip() {
     document.getElementById('storage-tip-box').innerHTML = `<strong>${name}:</strong> Store at ${info.temp} - ${info.humidity} humidity - Fresh for <strong>${info.freshDays} days</strong>.<br><em>${info.tips}</em>`;
   }
 }
+
+
+async function submitAddProduct() {
+  const name=document.getElementById('ap-name').value;
+  const qty=document.getElementById('ap-qty').value;
+  const unit=document.getElementById('ap-unit').value;
+  const date=document.getElementById('ap-date').value;
+  const loc=document.getElementById('ap-loc').value;
+  const price=document.getElementById('ap-price').value;
+
+  if(!qty||!date||!loc) return showAlert('add-prod-alert','All fields required.','danger');
+  const info = PRODUCE_DB[name]||{};
+
+  try {
+    await apiFetch('/produce', { method:'POST', body: JSON.stringify({
+      name, category: info.cat||'Other', quantity: Number(qty), unit,
+      harvest_date: date, location: loc,
+      storage_temp: info.temp||'', storage_humidity: info.humidity||'',
+      fresh_days: info.freshDays||0, storage_tips: info.tips||'',
+      expected_price_per_kg: price ? Number(price) : null
+    })});
+
+    closeModal();
+    await refreshDataAndRender('products');
+    showAlert('prod-alert','Produce added successfully!','success');
+  } catch(e) {
+    if (isDemo()) {
+      const newProduct = {
+        id:'prod'+Date.now(),
+        farmerId: state.user.id,
+        farmerName: state.user.name,
+        name,
+        category: info.cat||'Other',
+        quantity: Number(qty),
+        unit,
+        harvestDate: date,
+        location: loc,
+        status:'Available',
+        listed: today(),
+        temp: info.temp||'',
+        humidity: info.humidity||'',
+        freshDays: info.freshDays||7,
+        tips: info.tips||'',
+        emoji: info.emoji||'*',
+        expectedPrice: price ? Number(price) : null
+      };
+      state.products.push(newProduct);
+      SEED_PRODUCTS.push(newProduct);
+      closeModal();
+      renderMyProducts();
+      showAlert('prod-alert','Produce added locally!','success');
+      return;
+    }
+    handleApiError(e, 'add-prod-alert', 'Failed to add produce.');
+  }
+}
+
+async function removeProduct(id) {
+  try {
+    await apiFetch('/produce/'+id, { method:'DELETE' });
+    await refreshDataAndRender('products');
+    showAlert('prod-alert','Produce removed.','success');
+  } 
+  catch(e) {
+    if (isDemo()) {
+      state.products = state.products.filter(p=>String(p.id)!==String(id));
+      renderMyProducts();
+      showAlert('prod-alert','Produce removed locally!','success');
+      return;
+    }
+    handleApiError(e, 'prod-alert', 'Failed to remove produce.');
+  }
+}
