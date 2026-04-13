@@ -89,4 +89,33 @@ async function submitFailure() {
       route: `${job?.pickup} -> ${job?.destination}`,
       reason, notes: document.getElementById('rf-notes').value, alternatives: alts
     })});
+    
+    closeModal();
+    await refreshDataAndRender('failures');
+    showAlert('fail-alert','Failure report submitted.','success');
+  }
+  catch(e) {
+    if (isDemo()) {
+      const newFail = {
+        id:'fail'+Date.now(),
+        transporterId: state.user.id,
+        transporterName: state.user.name,
+        requestId: jobId,
+        product: job?.product,
+        route: `${job?.pickup} -> ${job?.destination}`,
+        reason: reason,
+        notes: document.getElementById('rf-notes').value,
+        alternatives: alts,
+        reported: today()
+      };
+      state.failures.push(newFail);
+      state.trans = state.trans.map(t=>String(t.id)===String(jobId)?{...t,status:'Failed'}:t);
+      closeModal();
+      renderFailures();
+      showAlert('fail-alert','Failure report saved locally!','success');
+      return;
+    }
+    handleApiError(e, 'rf-alert', 'Failed to report failure.');
+  }
+}
 
