@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(150)  NOT NULL,
   email         VARCHAR(200)  NOT NULL UNIQUE,
+  phone         VARCHAR(20)   DEFAULT '',
   password_hash VARCHAR(255)  NOT NULL,
   role          ENUM('farmer','transport','dealer','admin') NOT NULL DEFAULT 'farmer',
   location      VARCHAR(150)  DEFAULT '',
@@ -35,12 +36,17 @@ CREATE TABLE IF NOT EXISTS produce (
   category           ENUM('Fruit','Vegetable','Other') NOT NULL DEFAULT 'Other',
   emoji              VARCHAR(10)  DEFAULT '🌿',
   quantity           DECIMAL(10,2) NOT NULL,
+  sold_quantity      DECIMAL(10,2) NOT NULL DEFAULT 0,
   unit               ENUM('kg','ton','pieces','crate') NOT NULL DEFAULT 'kg',
   harvest_date       DATE         NOT NULL,
   location           VARCHAR(150) NOT NULL,
   storage_temp       VARCHAR(30)  DEFAULT '',
   storage_humidity   VARCHAR(30)  DEFAULT '',
   fresh_days         INT          DEFAULT 7,
+  short_description  TEXT,
+  image_url          MEDIUMTEXT   DEFAULT NULL,
+  image_urls         MEDIUMTEXT   DEFAULT NULL,
+  expected_price_per_kg DECIMAL(10,2) DEFAULT NULL,
   storage_tips       TEXT,
   status             ENUM('Available','Reserved','Sold','Expired') NOT NULL DEFAULT 'Available',
   listed_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -58,6 +64,11 @@ CREATE TABLE IF NOT EXISTS transport_requests (
   farmer_name      VARCHAR(150) NOT NULL,
   product_id       INT          DEFAULT NULL,
   produce_name     VARCHAR(100) NOT NULL,
+  contact_phone    VARCHAR(20)  DEFAULT '',
+  dealer_id        INT          DEFAULT NULL,
+  dealer_name      VARCHAR(150) DEFAULT '',
+  dealer_phone     VARCHAR(20)  DEFAULT '',
+  dealer_location  VARCHAR(150) DEFAULT '',
   pickup_location  VARCHAR(200) NOT NULL,
   destination      VARCHAR(200) NOT NULL,
   pickup_date      DATE,
@@ -70,10 +81,44 @@ CREATE TABLE IF NOT EXISTS transport_requests (
   updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (farmer_id)   REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (dealer_id)   REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (product_id)  REFERENCES produce(id) ON DELETE SET NULL,
   INDEX idx_farmer   (farmer_id),
   INDEX idx_assigned (assigned_to),
   INDEX idx_status   (status)
+) ENGINE=InnoDB;
+
+-- TABLE 4: TRANSPORT PROPOSALS
+CREATE TABLE IF NOT EXISTS transport_proposals (
+  id                         INT AUTO_INCREMENT PRIMARY KEY,
+  transport_provider_id      INT          NOT NULL,
+  transport_provider_name    VARCHAR(150) NOT NULL,
+  current_location           VARCHAR(200) NOT NULL,
+  fruit_type                 VARCHAR(100) NOT NULL,
+  harvest_date               DATE         NOT NULL,
+  preferred_dealer_location  VARCHAR(200) NOT NULL,
+  notes                      TEXT,
+  farmer_id                  INT          DEFAULT NULL,
+  farmer_name                VARCHAR(150) DEFAULT NULL,
+  farmer_price               DECIMAL(10,2) DEFAULT NULL,
+  admin_notes                TEXT,
+  route_from                 VARCHAR(200) DEFAULT NULL,
+  route_to                   VARCHAR(200) DEFAULT NULL,
+  status                     ENUM('PendingReview','AwaitingFarmerPrice','AwaitingAdminApproval','Published','Expired','Converted','Completed','Rejected','Cancelled') NOT NULL DEFAULT 'PendingReview',
+  published_at               DATETIME     DEFAULT NULL,
+  expires_at                 DATETIME     DEFAULT NULL,
+  converted_at               DATETIME     DEFAULT NULL,
+  converted_dealer_id        INT          DEFAULT NULL,
+  converted_dealer_name      VARCHAR(150) DEFAULT NULL,
+  created_at                 DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at                 DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (transport_provider_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (farmer_id)             REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (converted_dealer_id)    REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_provider (transport_provider_id),
+  INDEX idx_farmer    (farmer_id),
+  INDEX idx_status    (status),
+  INDEX idx_expires   (expires_at)
 ) ENGINE=InnoDB;
 
 -- TABLE 4: PRODUCE CONDITIONS (Reference Table)
@@ -103,11 +148,13 @@ CREATE TABLE IF NOT EXISTS deals (
   product_id            INT          DEFAULT NULL,
   produce_name          VARCHAR(100) NOT NULL,
   quantity_requested    VARCHAR(100) DEFAULT '',
+  expected_price_per_kg  DECIMAL(10,2) DEFAULT NULL,
   offered_price_per_kg  DECIMAL(10,2) NOT NULL,
   message               TEXT,
-  status                ENUM('Pending','Accepted','Declined','Cancelled') NOT NULL DEFAULT 'Pending',
+  status                ENUM('Pending','Accepted','Declined','Cancelled','Completed') NOT NULL DEFAULT 'Pending',
   created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   responded_at          DATETIME     DEFAULT NULL,
+  updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (dealer_id)  REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (farmer_id)  REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES produce(id) ON DELETE SET NULL,
@@ -130,9 +177,52 @@ CREATE TABLE IF NOT EXISTS delivery_failures (
   notes                 TEXT,
   alternatives          JSON,
   reported_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (transporter_id)       REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (transport_request_id) REFERENCES transport_requests(id) ON DELETE CASCADE,
   INDEX idx_transporter (transporter_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS failure_alternative_requests (
+  id                         INT AUTO_INCREMENT PRIMARY KEY,
+  failure_id                 INT NOT NULL,
+  source_transport_request_id INT NOT NULL,
+  product_id                 INT DEFAULT NULL,
+  produce_name               VARCHAR(100) DEFAULT '',
+  quantity                   DECIMAL(10,2) NOT NULL DEFAULT 0,
+  farmer_id                  INT NOT NULL,
+  farmer_name                VARCHAR(150) NOT NULL,
+  dealer_id                  INT DEFAULT NULL,
+  dealer_name                VARCHAR(150) DEFAULT '',
+  dealer_phone               VARCHAR(20) DEFAULT '',
+  dealer_location            VARCHAR(150) DEFAULT '',
+  transporter_id             INT NOT NULL,
+  transporter_name           VARCHAR(150) NOT NULL,
+  current_location           VARCHAR(200) NOT NULL,
+  fruit_type                 VARCHAR(100) NOT NULL,
+  pickup_date                DATE NOT NULL,
+  preferred_dealer_location  VARCHAR(200) NOT NULL,
+  requested_price_per_kg     DECIMAL(10,2) DEFAULT NULL,
+  proposed_price_per_kg      DECIMAL(10,2) DEFAULT NULL,
+  final_price_per_kg         DECIMAL(10,2) DEFAULT NULL,
+  generated_transport_request_id INT DEFAULT NULL,
+  decision_notes             TEXT,
+  status                     ENUM('PendingFarmerDecision','AcceptedOldPrice','AcceptedNewPrice','Returned') NOT NULL DEFAULT 'PendingFarmerDecision',
+  created_at                 DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at                 DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (failure_id) REFERENCES delivery_failures(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_transport_request_id) REFERENCES transport_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES produce(id) ON DELETE SET NULL,
+  FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (dealer_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (transporter_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (generated_transport_request_id) REFERENCES transport_requests(id) ON DELETE SET NULL,
+  UNIQUE KEY uq_failure_id (failure_id),
+  INDEX idx_failure (failure_id),
+  INDEX idx_farmer_status (farmer_id, status),
+  INDEX idx_dealer_status (dealer_id, status),
+  INDEX idx_transporter_status (transporter_id, status)
 ) ENGINE=InnoDB;
 
 -- ============================================================
@@ -171,32 +261,28 @@ INSERT INTO produce_conditions (produce_name, category, emoji, storage_temp, sto
 
 -- ── Demo Users (bcrypt hash for "pass123") ────────────────
 -- Hash: $2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i
-INSERT INTO users (name, email, password_hash, role, location, vehicle_type) VALUES
-('Admin User',      'admin@harvest.bd',  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'admin',     '',          ''),
-('Rahim Uddin',     'rahim@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Rajshahi',  ''),
-('Sufia Begum',     'sufia@farm.bd',     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Mymensingh',''),
-('Karim Transport', 'karim@trans.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'transport', '',          'Refrigerated Truck'),
-('Dhaka Fresh Ltd', 'dhaka@fresh.bd',    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer',    'Dhaka',     ''),
-('Chittagong Grocers', 'chittagong@fresh.bd', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer', 'Chittagong', '');
-
-
-
-
--- SAMPLE DATA (password: demo1234)
-INSERT INTO users (name, email, password_hash, role, location) VALUES
-('Rahim Uddin', 'rahim@demo.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'farmer', 'Rajshahi'),
-('Karim Transport', 'karim@demo.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK0i', 'transport', 'Dhaka');
+INSERT IGNORE INTO users (name, email, phone, password_hash, role, location, vehicle_type) VALUES
+('Admin User',      'admin@harvest.bd',  '+8801700000001', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'admin',     '',          ''),
+('Rahim Uddin',     'rahim@farm.bd',     '+8801700000002', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Rajshahi',  ''),
+('Sufia Begum',     'sufia@farm.bd',     '+8801700000003', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'farmer',    'Mymensingh',''),
+('Karim Transport', 'karim@trans.bd',    '+8801700000004', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'transport', '',          'Refrigerated Truck'),
+('Dhaka Fresh Ltd', 'dhaka@fresh.bd',    '+8801700000005', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer',    'Dhaka',     ''),
+('Chittagong Grocers', 'chittagong@fresh.bd', '+8801700000006', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCMRfDpv1rqmEu5C7.cVZ7i', 'dealer', 'Chittagong', '');
 
 -- ── Sample Produce Listings ────────────────────────────────
-INSERT INTO produce (farmer_id, farmer_name, name, category, emoji, quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, storage_tips, status) VALUES
-(2, 'Rahim Uddin', 'Mango',   'Fruit',     '🥭', 500,  'kg',    '2026-01-20', 'Rajshahi',   '13–15°C',  '85–90%',  14, 'Store away from ethylene-sensitive produce. Ripen at room temperature.', 'Available'),
-(3, 'Sufia Begum', 'Tomato',  'Vegetable', '🍅', 300,  'kg',    '2026-01-22', 'Mymensingh', '10–13°C',  '85–90%',  10, 'Store stem-up. Never refrigerate fully ripe tomatoes.',                'Available'),
-(2, 'Rahim Uddin', 'Potato',  'Vegetable', '🥔', 1000, 'kg',    '2026-01-15', 'Rajshahi',   '4–7°C',    '85–90%',  60, 'Store in dark, dry, cool place. Avoid light to prevent greening.',     'Available'),
-(3, 'Sufia Begum', 'Cauliflower','Vegetable','🥦',150, 'kg',    '2026-01-25', 'Mymensingh', '0–1°C',    '90–95%',  14, 'Store wrapped to prevent discoloration. Keep very cold.',               'Available');
+INSERT INTO produce (farmer_id, farmer_name, name, category, emoji, quantity, sold_quantity, unit, harvest_date, location, storage_temp, storage_humidity, fresh_days, short_description, image_url, image_urls, storage_tips, status) VALUES
+(2, 'Rahim Uddin', 'Mango',   'Fruit',     '🥭', 500, 0, 'kg',    '2026-01-20', 'Rajshahi',   '13–15°C',  '85–90%',  14, 'Fresh Rajshahi mangoes ready for market.', NULL, NULL, 'Store away from ethylene-sensitive produce. Ripen at room temperature.', 'Available'),
+(3, 'Sufia Begum', 'Tomato',  'Vegetable', '🍅', 300, 0, 'kg',    '2026-01-22', 'Mymensingh', '10–13°C',  '85–90%',  10, 'Bright, firm tomatoes for wholesale buyers.', NULL, NULL, 'Store stem-up. Never refrigerate fully ripe tomatoes.',                'Available'),
+(2, 'Rahim Uddin', 'Potato',  'Vegetable', '🥔', 1000, 0, 'kg',    '2026-01-15', 'Rajshahi',   '4–7°C',    '85–90%',  60, 'Bulk stock for long storage.', NULL, NULL, 'Store in dark, dry, cool place. Avoid light to prevent greening.',     'Available'),
+(3, 'Sufia Begum', 'Cauliflower','Vegetable','🥦',150, 0, 'kg',    '2026-01-25', 'Mymensingh', '0–1°C',    '90–95%',  14, 'Fresh cauliflowers for quick sale.', NULL, NULL, 'Store wrapped to prevent discoloration. Keep very cold.',               'Available');
 
 -- ── Sample Transport Request ──────────────────────────────
-INSERT INTO transport_requests (farmer_id, farmer_name, product_id, produce_name, pickup_location, destination, pickup_date, quantity, notes, status) VALUES
-(2, 'Rahim Uddin', 1, 'Mango', 'Rajshahi', 'Dhaka Kawran Bazar', '2026-02-01', '500 kg', 'Refrigerated vehicle required. Handle with care.', 'Open');
+INSERT INTO transport_requests (farmer_id, farmer_name, product_id, produce_name, contact_phone, pickup_location, destination, pickup_date, quantity, notes, status) VALUES
+(2, 'Rahim Uddin', 1, 'Mango', '+8801700000002', 'Rajshahi', 'Dhaka Kawran Bazar', '2026-02-01', '500 kg', 'Refrigerated vehicle required. Handle with care.', 'Open');
+
+-- ── Sample Transport Proposal ─────────────────────────────
+INSERT INTO transport_proposals (transport_provider_id, transport_provider_name, current_location, fruit_type, harvest_date, preferred_dealer_location, notes, farmer_id, farmer_name, farmer_price, admin_notes, route_from, route_to, status, published_at, expires_at) VALUES
+(4, 'Karim Transport', 'Rajshahi', 'Mango', '2026-02-01', 'Dhaka', 'Cold chain available. Ready for same-day dispatch.', 2, 'Rahim Uddin', 82.50, 'Demo proposal for workflow testing.', 'Rajshahi', 'Dhaka', 'Published', DATE_SUB(NOW(), INTERVAL 10 MINUTE), DATE_ADD(NOW(), INTERVAL 50 MINUTE));
 
 -- ── Sample Deal ───────────────────────────────────────────
 INSERT INTO deals (dealer_id, dealer_name, farmer_id, farmer_name, product_id, produce_name, quantity_requested, offered_price_per_kg, message, status) VALUES
