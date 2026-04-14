@@ -1,4 +1,3 @@
-
 function renderFarmerDeals() {
   const myD = state.deals.filter(d=>d.farmerId===state.user.id);
   
