@@ -29,7 +29,6 @@ const ROLE_CFG = {
     { id:'failures',  label:'Failures',            icon:'⚠️' },
   ]},
 };
-
 function initApp() {
   document.getElementById('auth-page').style.display='none';
   document.getElementById('app').style.display='flex';

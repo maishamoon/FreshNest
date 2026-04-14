@@ -110,60 +110,59 @@ function renderDealerDashboard() {
   `;
 }
 
-function renderAdminDashboard() {
-  const total = { users:state.users.length, products:state.products.length, trans:state.trans.length, deals:state.deals.length, failures:state.failures.length };
-  const byRole = r => state.users.filter(u=>u.role===r).length;
+function renderBrowseRequests() {
+  const open = state.trans.filter(t=>t.status==='Open');
   document.getElementById('page-body').innerHTML = `
-    <div class="hero-banner" style="background:linear-gradient(135deg,#4A235A,#6C3483,#8E44AD)">
-      <div class="inner"><h2>Admin Overview</h2><p>System-wide monitoring across all users, produce listings, logistics, and deals.</p></div>
-    </div>
-    <div class="stats-grid">
-      <div class="stat-card green" data-icon="👥"><div class="stat-value">${total.users}</div><div class="stat-label">Total Users</div></div>
-      <div class="stat-card gold" data-icon="🌿"><div class="stat-value">${total.products}</div><div class="stat-label">Produce Listed</div></div>
-      <div class="stat-card forest" data-icon="🚛"><div class="stat-value">${total.trans}</div><div class="stat-label">Transport Requests</div></div>
-      <div class="stat-card sage" data-icon="🤝"><div class="stat-value">${total.deals}</div><div class="stat-label">Deals</div></div>
-    </div>
-    <div class="info-grid">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Users by Role</div></div>
-        <div class="card-body">
-          ${[['Farmers','farmer','green'],['Transport','transport','gold'],['Dealers','dealer','blue'],['Admins','admin','gray']].map(([label,role,color])=>`
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ivory)">
-              <span style="font-weight:600">${label}</span>
-              <span class="badge badge-${color}">${byRole(role)}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Activity Summary</div></div>
-        <div class="card-body">
-          ${[['Open Transport Requests', state.trans.filter(t=>t.status==='Open').length,'blue'],
-            ['Active Deliveries', state.trans.filter(t=>t.status==='Accepted').length,'green'],
-            ['Pending Deals', state.deals.filter(d=>d.status==='Pending').length,'gold'],
-            ['Delivery Failures', state.failures.length,'red']].map(([label,val,color])=>`
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ivory)">
-              <span style="font-weight:600">${label}</span>
-              <span class="badge badge-${color}">${val}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    </div>
-    ${state.failures.length>0?`<div class="alert alert-warning">${state.failures.length} delivery failure(s) reported. Review in the Failures section.</div>`:''}
+    <div class="section-header"><h2>Browse Requests</h2></div>
+    <div id="offer-alert"></div>
+    ${open.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">📋</div><p>No open requests at the moment.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Farmer</th><th>Produce</th><th>Pickup</th><th>Destination</th><th>Date</th><th>Qty</th><th>Notes</th><th>Action</th></tr></thead>
+      <tbody>${open.map(t=>`<tr>
+        <td><strong>${t.farmerName}</strong></td>
+        <td>${produceEmoji(t.product)} ${t.product}</td>
+        <td>${t.pickup}</td><td>${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td style="max-width:150px;font-size:.8rem;color:var(--slate)">${t.notes||'—'}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="acceptJob('${t.id}')">Accept</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
   `;
 }
 
-function renderStorageGuide() {
-  const fruits = Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Fruit');
-  const vegs   = Object.entries(PRODUCE_DB).filter(([,v])=>v.cat==='Vegetable');
-  
+async function acceptJob(id) {
+  try {
+    await apiFetch('/transport/'+id, { method:'PATCH', body: JSON.stringify({ status:'Accepted' }) });
+    await refreshDataAndRender(state.activeNav || 'offers');
+    showAlert('offer-alert','Job accepted.','success');
+  } catch(e) {
+    if (isDemo()) {
+      state.trans = state.trans.map(t=>String(t.id)===String(id)?{...t,status:'Accepted',assignedTo:state.user.id,transporterName:state.user.name}:t);
+      renderBrowseRequests();
+      showAlert('offer-alert','Job accepted locally!','success');
+      return;
+    }
+    handleApiError(e, 'offer-alert', 'Failed to accept job.');
+  }
+}
+
+function renderMyJobs() {
+  const mine = state.trans.filter(t=>t.assignedTo===state.user.id);
   document.getElementById('page-body').innerHTML = `
-    <div class="section-header"><h2>Storage Guide</h2></div>
-    <div class="hero-banner"><div class="inner"><h2>Storage Condition Reference</h2><p>Optimal conditions to minimize post-harvest losses for ${Object.keys(PRODUCE_DB).length} crops.</p></div></div>
-    <h3 style="color:var(--forest);margin-bottom:1rem;font-family:'Lora',serif;">Fruits</h3>
-    <div class="produce-grid" style="margin-bottom:2rem">${fruits.map(([name,info])=>produceCard(name,info)).join('')}</div>
-    <h3 style="color:var(--forest);margin-bottom:1rem;font-family:'Lora',serif;">Vegetables</h3>
-    <div class="produce-grid">${vegs.map(([name,info])=>produceCard(name,info)).join('')}</div>
+    <div class="section-header"><h2>My Jobs</h2></div>
+    <div id="job-alert"></div>
+    ${mine.length===0?`<div class="card"><div class="empty-state"><div class="empty-icon">🗓️</div><p>No accepted jobs yet. Browse open requests.</p></div></div>`:`
+    <div class="card"><div class="card-body table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Produce</th><th>Route</th><th>Date</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${mine.map(t=>`<tr>
+        <td>${produceEmoji(t.product)} <strong>${t.product}</strong></td>
+        <td>${t.pickup} → ${t.destination}</td>
+        <td>${t.date}</td><td>${t.quantity}</td>
+        <td>${badge(t.status)}</td>
+        <td>${t.status==='Accepted'?`<button class="btn btn-sm btn-primary" onclick="completeJob('${t.id}')">Delivered</button>`:'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`}
   `;
 }

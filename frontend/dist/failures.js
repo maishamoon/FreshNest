@@ -89,7 +89,7 @@ async function submitFailure() {
       route: `${job?.pickup} -> ${job?.destination}`,
       reason, notes: document.getElementById('rf-notes').value, alternatives: alts
     })});
-
+    
     closeModal();
     await refreshDataAndRender('failures');
     showAlert('fail-alert','Failure report submitted.','success');
@@ -118,3 +118,4 @@ async function submitFailure() {
     handleApiError(e, 'rf-alert', 'Failed to report failure.');
   }
 }
+

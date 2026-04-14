@@ -11,7 +11,6 @@ async function renderAdminUsers() {
   } catch (err) {
     console.warn('Could not refresh users list:', err);
   }
-
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>All Users (${state.users.length})</h2></div>
     <div class="card"><div class="card-body table-wrap">
@@ -25,7 +24,6 @@ async function renderAdminUsers() {
     </table></div></div>
   `;
 }
-
 function renderAdminProducts() {
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>All Produce (${state.products.length})</h2></div>
@@ -60,7 +58,6 @@ function renderAdminTransport() {
     </table></div></div>
   `;
 }
-
 function renderAdminDeals() {
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>All Deals (${state.deals.length})</h2></div>
@@ -76,7 +73,6 @@ function renderAdminDeals() {
     </table></div></div>
   `;
 }
-
 function renderAdminFailures() {
   document.getElementById('page-body').innerHTML = `
     <div class="section-header"><h2>Delivery Failures (${state.failures.length})</h2></div>
@@ -100,3 +96,4 @@ function renderAdminFailures() {
     `).join('')}
   `;
 }
+

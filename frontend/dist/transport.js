@@ -35,7 +35,7 @@ function openAddTransport() {
     </div>`);
     return;
   }
-
+  
   openModal(`<div class="modal">
     <div class="modal-header"><span class="modal-title">New Transport Request</span><button class="modal-close" onclick="closeModal()">X</button></div>
     <div class="modal-body">

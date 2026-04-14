@@ -69,6 +69,7 @@ function updateStorageTip() {
   }
 }
 
+
 async function submitAddProduct() {
   const name=document.getElementById('ap-name').value;
   const qty=document.getElementById('ap-qty').value;
