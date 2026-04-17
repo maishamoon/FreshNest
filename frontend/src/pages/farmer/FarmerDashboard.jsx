@@ -297,7 +297,14 @@ export default function FarmerDashboard() {
                         {item.status === 'returned' && (
                           <p className="text-sm text-slate mt-2">Product returned to your inventory</p>
                         )}
-                        {item.status !== 'acceptednewprice' && item.status !== 'returned' && (
+                        {item.status === 'dealeraccepted' && (
+                          <div className="mt-2 text-sm text-green-700">
+                            <p>Accepted and purchased by dealer</p>
+                            <p className="text-slate">Dealer: {item.convertedDealerName || item.dealerName || 'N/A'}</p>
+                            <p className="text-slate">Phone: {item.convertedDealerPhone || item.dealerPhone || 'Not provided'}</p>
+                          </div>
+                        )}
+                        {item.status !== 'acceptednewprice' && item.status !== 'returned' && item.status !== 'dealeraccepted' && (
                           <p className="text-sm text-slate mt-2">Status: {fallbackStatusLabel}</p>
                         )}
                       </div>

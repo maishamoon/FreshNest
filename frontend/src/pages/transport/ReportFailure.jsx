@@ -140,20 +140,22 @@ export default function ReportFailure() {
           </div>
         </section>
 
-        {acceptedJobs.length === 0 ? (
+        {acceptedJobs.length === 0 && !failureId ? (
           <EmptyState icon={AlertTriangle} message="No accepted jobs to report failure for" />
         ) : (
           <div className="space-y-6">
-            <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center gap-2 text-red-600">
-                <ShieldAlert className="h-5 w-5" />
-                <p className="font-semibold">Failure reporting active</p>
+            {acceptedJobs.length > 0 && (
+              <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center gap-2 text-red-600">
+                  <ShieldAlert className="h-5 w-5" />
+                  <p className="font-semibold">Failure reporting active</p>
+                </div>
+                <p className="mb-4 text-gray-600">You have {acceptedJobs.length} accepted job(s). Select one to report a failure.</p>
+                <button onClick={() => setIsModalOpen(true)} className="rounded-full bg-red-500 px-6 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-red-600">
+                  Report Delivery Failure
+                </button>
               </div>
-              <p className="mb-4 text-gray-600">You have {acceptedJobs.length} accepted job(s). Select one to report a failure.</p>
-              <button onClick={() => setIsModalOpen(true)} className="rounded-full bg-red-500 px-6 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-red-600">
-                Report Delivery Failure
-              </button>
-            </div>
+            )}
 
             {failureId && (
               <div className="mt-6 rounded-[2rem] border border-amber-200 bg-amber-50/40 p-6">

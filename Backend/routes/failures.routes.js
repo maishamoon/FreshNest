@@ -130,27 +130,33 @@ router.get('/alternatives', auth(), async (req, res) => {
       expiryConnection.release();
     }
 
+    const baseSelect = `SELECT far.*, ucd.phone AS converted_dealer_phone,
+                   uf.phone AS farmer_phone, uf.location AS farmer_location
+                        FROM failure_alternative_requests far
+              LEFT JOIN users ucd ON ucd.id = far.converted_dealer_id
+              LEFT JOIN users uf ON uf.id = far.farmer_id`;
+
     let rows;
     if (req.user.role === 'transport') {
       rows = await query(
-        'SELECT * FROM failure_alternative_requests WHERE transporter_id = ? ORDER BY created_at DESC',
+        `${baseSelect} WHERE far.transporter_id = ? ORDER BY far.created_at DESC`,
         [req.user.id]
       );
     } else if (req.user.role === 'farmer') {
       rows = await query(
-        'SELECT * FROM failure_alternative_requests WHERE farmer_id = ? ORDER BY created_at DESC',
+        `${baseSelect} WHERE far.farmer_id = ? ORDER BY far.created_at DESC`,
         [req.user.id]
       );
     } else if (req.user.role === 'dealer') {
       rows = await query(
-        `SELECT * FROM failure_alternative_requests
-         WHERE status = 'AcceptedNewPrice'
-         AND (expires_at IS NULL OR expires_at > NOW())
-         ORDER BY created_at DESC`,
+        `${baseSelect}
+         WHERE far.status = 'AcceptedNewPrice'
+         AND (far.expires_at IS NULL OR far.expires_at > NOW())
+         ORDER BY far.created_at DESC`,
         []
       );
     } else if (req.user.role === 'admin') {
-      rows = await query('SELECT * FROM failure_alternative_requests ORDER BY created_at DESC');
+      rows = await query(`${baseSelect} ORDER BY far.created_at DESC`);
     } else {
       return error(res, 'Unauthorized role.', 403);
     }
@@ -565,6 +571,16 @@ router.patch('/alternatives/:id/dealer-accept', auth(['dealer']), async (req, re
   try {
     await connection.beginTransaction();
 
+    const [dealerRows] = await connection.execute(
+      'SELECT id, name, phone, location FROM users WHERE id = ? AND role = ? LIMIT 1',
+      [req.user.id, 'dealer']
+    );
+    if (!dealerRows.length) {
+      await connection.rollback();
+      return error(res, 'Dealer profile not found.', 404);
+    }
+    const acceptingDealer = dealerRows[0];
+
     const [altRows] = await connection.execute(
       `SELECT *
        FROM failure_alternative_requests
@@ -584,13 +600,16 @@ router.patch('/alternatives/:id/dealer-accept', auth(['dealer']), async (req, re
       `UPDATE failure_alternative_requests
        SET status = 'DealerAccepted', converted_dealer_id = ?, converted_dealer_name = ?, updated_at = NOW()
        WHERE id = ?`,
-      [req.user.id, req.user.name, alternative.id]
+      [acceptingDealer.id, acceptingDealer.name, alternative.id]
     );
 
     if (alternative.product_id && alternative.farmer_id) {
       await connection.execute(
         `UPDATE deals
-         SET status = 'Completed', delivered_at = NOW(), updated_at = NOW()
+         SET dealer_id = ?,
+             dealer_name = ?,
+             status = 'Accepted',
+             updated_at = NOW()
          WHERE id = (
            SELECT id FROM (
              SELECT id
@@ -600,21 +619,60 @@ router.patch('/alternatives/:id/dealer-accept', auth(['dealer']), async (req, re
              LIMIT 1
            ) x
          )`,
-        [alternative.product_id, alternative.farmer_id]
+        [acceptingDealer.id, acceptingDealer.name, alternative.product_id, alternative.farmer_id]
       );
     }
 
     if (alternative.generated_transport_request_id) {
+      const [generatedRequestRows] = await connection.execute(
+        `SELECT id, status, assigned_to
+         FROM transport_requests
+         WHERE id = ?
+         FOR UPDATE`,
+        [alternative.generated_transport_request_id]
+      );
+
+      if (!generatedRequestRows.length) {
+        await connection.rollback();
+        return error(res, 'Generated transport request not found.', 404);
+      }
+
+      const generatedRequest = generatedRequestRows[0];
+      if (generatedRequest.status !== 'Open') {
+        await connection.rollback();
+        return error(res, 'Generated transport request is no longer open for reassignment.', 409);
+      }
+
+      if (generatedRequest.assigned_to && Number(generatedRequest.assigned_to) !== Number(alternative.transporter_id || 0)) {
+        await connection.rollback();
+        return error(res, 'Generated transport request is already assigned to another transporter.', 409);
+      }
+
       await connection.execute(
         `UPDATE transport_requests
-         SET status = 'Completed', updated_at = NOW()
-         WHERE id = ?`,
-        [alternative.generated_transport_request_id]
+         SET dealer_id = ?,
+             dealer_name = ?,
+             dealer_phone = ?,
+             dealer_location = ?,
+             assigned_to = ?,
+             transporter_name = ?,
+             status = 'Accepted',
+             updated_at = NOW()
+         WHERE id = ? AND status = 'Open'`,
+        [
+          acceptingDealer.id,
+          acceptingDealer.name,
+          acceptingDealer.phone || '',
+          acceptingDealer.location || '',
+          alternative.transporter_id || null,
+          alternative.transporter_name || null,
+          alternative.generated_transport_request_id,
+        ]
       );
     }
 
     await connection.commit();
-    return success(res, { message: 'Alternative accepted. Product marked as delivered.' });
+    return success(res, { message: 'Alternative accepted. Transport job reassigned to transporter for delivery completion.' });
   } catch (err) {
     await connection.rollback();
     return error(res, 'Failed to accept alternative listing.', 500);

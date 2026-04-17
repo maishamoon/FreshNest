@@ -7,6 +7,7 @@ import { Topbar } from '../../components/layout/Topbar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Badge } from '../../components/ui/Badge';
 import toast from 'react-hot-toast';
+import { parseQuantityValue } from '../../utils/helpers';
 
 export default function TransportRequests() {
   const { user } = useAuth();
@@ -25,16 +26,36 @@ export default function TransportRequests() {
   });
 
   const myRequests = transport.filter((t) => t.farmerId === user?.id);
-  const availableProduce = products.filter(
-    (p) => p.farmerId === user?.id && p.status !== 'sold' && (p.availableQuantity ?? p.quantity) > 0
-  );
   const acceptedDeals = deals
     .filter((d) => d.farmerId === user?.id && d.status === 'accepted')
     .sort((a, b) => new Date(b.respondedAt || b.createdAt || 0).getTime() - new Date(a.respondedAt || a.createdAt || 0).getTime());
+  const acceptedDealByProduceId = acceptedDeals.reduce((acc, deal) => {
+    const produceId = Number(deal.produceId);
+    if (!produceId || acc[produceId]) return acc;
+    return { ...acc, [produceId]: deal };
+  }, {});
+
+  const availableProduce = products.filter((p) => {
+    if (p.farmerId !== user?.id) return false;
+
+    const hasAcceptedDeal = Boolean(acceptedDealByProduceId[Number(p.id)]);
+    if (hasAcceptedDeal) return true;
+
+    if (String(p.status || '').toLowerCase() === 'sold') return false;
+
+    return parseQuantityValue(p.availableQuantity ?? p.quantity) > 0;
+  });
+
+  const getPreferredTransportQuantity = (produce, acceptedDeal) => {
+    const acceptedQty = parseQuantityValue(acceptedDeal?.quantity);
+    if (acceptedQty > 0) return acceptedQty;
+
+    return parseQuantityValue(produce?.availableQuantity ?? produce?.quantity);
+  };
 
   const handleProduceChange = (produceId) => {
     const selectedProduce = products.find((p) => p.id === Number(produceId));
-    const matchedDeal = acceptedDeals.find((deal) => Number(deal.produceId) === Number(produceId));
+    const matchedDeal = acceptedDealByProduceId[Number(produceId)] || null;
 
     setForm((current) => ({
       ...current,
@@ -53,8 +74,23 @@ export default function TransportRequests() {
       return;
     }
     const produce = products.find((p) => p.id === Number(form.produceId));
+    const matchedDeal = acceptedDealByProduceId[Number(form.produceId)] || null;
     if (!produce) {
       toast.error('Selected produce is no longer available');
+      return;
+    }
+
+    const isStillEligible =
+      Boolean(matchedDeal) ||
+      (String(produce.status || '').toLowerCase() !== 'sold' && parseQuantityValue(produce.availableQuantity ?? produce.quantity) > 0);
+    if (!isStillEligible) {
+      toast.error('Selected produce is no longer eligible for transport request');
+      return;
+    }
+
+    const transportQuantity = getPreferredTransportQuantity(produce, matchedDeal);
+    if (transportQuantity <= 0) {
+      toast.error('Unable to determine a valid transport quantity');
       return;
     }
 
@@ -71,7 +107,7 @@ export default function TransportRequests() {
         dealerLocation: form.dealerLocation,
         fromLocation: form.fromLocation,
         toLocation: form.toLocation,
-        quantity: produce.availableQuantity ?? produce.quantity,
+        quantity: transportQuantity,
         description: form.description,
       });
       toast.success('Transport request created');
@@ -199,7 +235,7 @@ export default function TransportRequests() {
               <option value="">Select...</option>
               {availableProduce.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} - {p.availableQuantity ?? p.quantity}{p.unit}
+                  {p.name} - {getPreferredTransportQuantity(p, acceptedDealByProduceId[Number(p.id)])}{p.unit}
                 </option>
               ))}
             </select>

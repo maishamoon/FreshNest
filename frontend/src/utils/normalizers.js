@@ -131,6 +131,8 @@ export const normAlternative = (a) => ({
   quantity: Number(a.quantity || 0),
   farmerId: a.farmer_id,
   farmerName: a.farmer_name || '',
+  farmerPhone: a.farmer_phone || '',
+  farmerLocation: a.farmer_location || '',
   dealerId: a.dealer_id || null,
   dealerName: a.dealer_name || '',
   dealerPhone: a.dealer_phone || '',
@@ -149,6 +151,7 @@ export const normAlternative = (a) => ({
   expiresAt: a.expires_at || null,
   convertedDealerId: a.converted_dealer_id || null,
   convertedDealerName: a.converted_dealer_name || null,
+  convertedDealerPhone: a.converted_dealer_phone || '',
   createdAt: a.created_at || a.createdAt,
   updatedAt: a.updated_at || a.updatedAt,
 });

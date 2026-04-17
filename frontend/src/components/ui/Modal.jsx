@@ -5,31 +5,36 @@ import { cn } from '../../utils/helpers';
 export function Modal({ isOpen, onClose, title, children, className }) {
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
 
     const previouslyFocused = document.activeElement;
 
-    // Focus first input or interactive element instead of close button
     const container = dialogRef.current;
-    if (container) {
-      const inputs = container.querySelectorAll('input, textarea, button, select');
-      if (inputs.length > 0) {
-        // Skip close button and focus first form input
-        const firstInput = inputs[0];
-        if (firstInput.getAttribute('aria-label') !== 'Close dialog') {
-          firstInput.focus();
-        } else if (inputs.length > 1) {
-          inputs[1].focus();
-        }
+    const focusFrame = requestAnimationFrame(() => {
+      if (!container) return;
+
+      const preferredFocus = container.querySelector(
+        '[data-autofocus]:not([disabled]):not([type="hidden"]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not([aria-label="Close dialog"]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (preferredFocus instanceof HTMLElement) {
+        preferredFocus.focus();
+        return;
       }
-    }
+
+      closeButtonRef.current?.focus();
+    });
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current?.();
         return;
       }
 
@@ -46,6 +51,12 @@ export function Modal({ isOpen, onClose, title, children, className }) {
       const firstElement = focusableNodes[0];
       const lastElement = focusableNodes[focusableNodes.length - 1];
 
+      if (!container.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? lastElement : firstElement).focus();
+        return;
+      }
+
       if (event.shiftKey && document.activeElement === firstElement) {
         event.preventDefault();
         lastElement.focus();
@@ -58,12 +69,13 @@ export function Modal({ isOpen, onClose, title, children, className }) {
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', handleKeyDown);
       if (previouslyFocused instanceof HTMLElement) {
         previouslyFocused.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
   return (
@@ -75,7 +87,7 @@ export function Modal({ isOpen, onClose, title, children, className }) {
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
-        className={cn('relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto', className)}
+        className={cn('relative bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]', className)}
       >
         <div className="flex items-center justify-between p-4 border-b">
           <h3 id={titleId} className="text-lg font-semibold">{title}</h3>
@@ -83,7 +95,7 @@ export function Modal({ isOpen, onClose, title, children, className }) {
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="p-4 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

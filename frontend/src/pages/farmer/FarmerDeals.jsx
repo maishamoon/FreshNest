@@ -10,9 +10,26 @@ import { ArrowRight } from 'lucide-react';
 
 export default function FarmerDeals() {
   const { user } = useAuth();
-  const { deals, products, updateDeal } = useAppData();
+  const { deals, products, alternatives, updateDeal } = useAppData();
 
   const myDeals = deals.filter(d => d.farmerId === user?.id);
+  const dealerAcceptedAlternativeByProduce = alternatives
+    .filter((item) => item.farmerId === user?.id && item.status === 'dealeraccepted' && item.productId)
+    .reduce((acc, item) => {
+      const key = `${item.farmerId}-${item.productId}`;
+      const current = acc[key];
+      if (!current) {
+        acc[key] = item;
+        return acc;
+      }
+
+      const currentTime = new Date(current.updatedAt || current.createdAt || 0).getTime();
+      const nextTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+      if (nextTime >= currentTime) {
+        acc[key] = item;
+      }
+      return acc;
+    }, {});
 
   const handleRespond = async (id, status) => {
     try {
@@ -61,13 +78,24 @@ export default function FarmerDeals() {
           <div className="grid gap-5 xl:grid-cols-2">
             {myDeals.map((d) => {
               const produce = products.find(p => p.id === d.produceId);
+              const altKey = `${d.farmerId}-${d.produceId}`;
+              const acceptedAlternative = dealerAcceptedAlternativeByProduce[altKey];
+              const dealerName = d.status === 'completed'
+                ? (acceptedAlternative?.convertedDealerName || d.dealerName || 'Unknown')
+                : (d.dealerName || 'Unknown');
+              const dealerPhone = d.status === 'completed'
+                ? (acceptedAlternative?.convertedDealerPhone || d.dealerPhone || 'Not provided')
+                : (d.dealerPhone || 'Not provided');
+              const dealerLocation = d.status === 'completed'
+                ? (acceptedAlternative?.dealerLocation || d.dealerLocation || acceptedAlternative?.preferredDealerLocation || 'Unknown location')
+                : (d.dealerLocation || 'Unknown location');
               return (
                 <article key={d.id} className="rounded-[1.75rem] border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green">Deal offer</p>
                       <h4 className="mt-2 text-2xl font-bold text-forest">{d.produceName}</h4>
-                      <p className="mt-2 text-sm text-slate">Dealer: {d.dealerName || 'Unknown'}</p>
+                      <p className="mt-2 text-sm text-slate">Dealer: {dealerName}</p>
                     </div>
                     <div className="text-right">
                       <Badge status={d.status} />
@@ -86,11 +114,11 @@ export default function FarmerDeals() {
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl bg-ivory p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate">Location</p>
-                      <p className="mt-1 text-sm font-semibold text-forest">{d.dealerLocation || 'Unknown location'}</p>
+                      <p className="mt-1 text-sm font-semibold text-forest">{dealerLocation}</p>
                     </div>
                     <div className="rounded-2xl bg-ivory p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate">Phone</p>
-                      <p className="mt-1 text-sm font-semibold text-forest">{d.dealerPhone || 'Not provided'}</p>
+                      <p className="mt-1 text-sm font-semibold text-forest">{dealerPhone}</p>
                     </div>
                   </div>
 
