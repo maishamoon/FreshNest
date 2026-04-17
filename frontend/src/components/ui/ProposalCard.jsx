@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Clock3, MapPin, Sprout, CalendarDays, Route } from 'lucide-react';
 import { Badge } from './Badge';
 import { cn, formatDate } from '../../utils/helpers';
-import { formatCountdown, useCountdown } from '../../hooks';
+import { useCountdown } from '../../hooks';
 
 const statusLabels = {
   pendingreview: 'Pending review',
@@ -18,14 +18,15 @@ const statusLabels = {
 };
 
 export function ProposalCard({ proposal, actions = [], className, showCountdown = false, highlightExpired = false, onExpired }) {
-  const remainingMs = useCountdown(showCountdown ? proposal.expiresAt : null);
-  const isExpiringSoon = showCountdown && proposal.status === 'published' && remainingMs > 0 && remainingMs <= 10 * 60 * 1000;
+  const hasValidExpiry = showCountdown && !!proposal.expiresAt && !Number.isNaN(new Date(proposal.expiresAt).getTime());
+  const { remainingMs, timeLeft, isExpired } = useCountdown(hasValidExpiry ? proposal.expiresAt : null);
+  const isExpiringSoon = hasValidExpiry && proposal.status === 'published' && remainingMs > 0 && remainingMs <= 10 * 60 * 1000;
 
   useEffect(() => {
-    if (showCountdown && proposal.status === 'published' && remainingMs === 0 && onExpired) {
+    if (hasValidExpiry && proposal.status === 'published' && isExpired && onExpired) {
       onExpired();
     }
-  }, [remainingMs, onExpired, proposal.status, showCountdown]);
+  }, [hasValidExpiry, isExpired, onExpired, proposal.status]);
 
   return (
     <div className={cn('rounded-2xl border border-forest/10 bg-white p-5 shadow-sm', className)}>
@@ -40,11 +41,11 @@ export function ProposalCard({ proposal, actions = [], className, showCountdown 
             {proposal.transportProviderName || proposal.transport_provider_name || 'Transport provider'} · {proposal.transportProviderId || proposal.transport_provider_id ? `#${proposal.transportProviderId || proposal.transport_provider_id}` : 'Proposal'}
           </p>
         </div>
-        {showCountdown && proposal.status === 'published' && (
+        {hasValidExpiry && proposal.status === 'published' && (
           <div className={cn('rounded-xl border px-3 py-2 text-sm', isExpiringSoon ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-forest/10 bg-ivory text-forest')}>
             <div className="flex items-center gap-2">
               <Clock3 className="w-4 h-4" />
-              <span className="font-medium">{remainingMs > 0 ? formatCountdown(remainingMs) : '00:00:00'}</span>
+              <span className="font-medium">{isExpired ? '0m 00s' : timeLeft}</span>
             </div>
             <p className="text-xs mt-1 uppercase tracking-wide">Dealer window</p>
           </div>
@@ -103,7 +104,7 @@ export function ProposalCard({ proposal, actions = [], className, showCountdown 
         </div>
       )}
 
-      {actions.length > 0 && (!showCountdown || remainingMs > 0) && (
+      {actions.length > 0 && (!showCountdown || !hasValidExpiry || remainingMs > 0) && (
         <div className="mt-5 flex flex-wrap gap-2">
           {actions.map((action) => (
             <button
@@ -121,7 +122,7 @@ export function ProposalCard({ proposal, actions = [], className, showCountdown 
         </div>
       )}
 
-      {showCountdown && proposal.status === 'published' && remainingMs === 0 && (
+      {hasValidExpiry && proposal.status === 'published' && isExpired && (
         <p className="mt-4 text-sm text-red-600 font-medium">Dealer window expired</p>
       )}
     </div>

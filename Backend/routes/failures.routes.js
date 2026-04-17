@@ -6,6 +6,29 @@ const { parseQuantityValue, getInventoryState } = require('../utils/inventory');
 
 const router = express.Router();
 
+async function expireStaleAlternatives(db) {
+  await db.execute(
+    `UPDATE failure_alternative_requests
+     SET status = 'Expired', updated_at = NOW()
+     WHERE status = 'AcceptedNewPrice' AND expires_at IS NOT NULL AND expires_at <= NOW()`
+  );
+
+  const [expiredRows] = await db.execute(
+    `SELECT product_id FROM failure_alternative_requests
+     WHERE status = 'Expired' AND expires_at IS NOT NULL AND product_id IS NOT NULL
+     AND updated_at >= DATE_SUB(NOW(), INTERVAL 5 SECOND)`
+  );
+
+  for (const row of expiredRows) {
+    await db.execute(
+      `UPDATE produce SET status = 'Available', sold_quantity = 0, updated_at = NOW() WHERE id = ?`,
+      [row.product_id]
+    );
+  }
+
+  return expiredRows.length;
+}
+
 router.get('/', auth(), async (req, res) => {
   try {
     let rows;
@@ -95,6 +118,18 @@ router.post('/', auth(['transport']), async (req, res) => {
 
 router.get('/alternatives', auth(), async (req, res) => {
   try {
+    const expiryConnection = await pool.getConnection();
+    try {
+      await expiryConnection.beginTransaction();
+      await expireStaleAlternatives(expiryConnection);
+      await expiryConnection.commit();
+    } catch (expireErr) {
+      await expiryConnection.rollback();
+      throw expireErr;
+    } finally {
+      expiryConnection.release();
+    }
+
     let rows;
     if (req.user.role === 'transport') {
       rows = await query(
@@ -108,8 +143,11 @@ router.get('/alternatives', auth(), async (req, res) => {
       );
     } else if (req.user.role === 'dealer') {
       rows = await query(
-        'SELECT * FROM failure_alternative_requests WHERE dealer_id = ? ORDER BY created_at DESC',
-        [req.user.id]
+        `SELECT * FROM failure_alternative_requests
+         WHERE status = 'AcceptedNewPrice'
+         AND (expires_at IS NULL OR expires_at > NOW())
+         ORDER BY created_at DESC`,
+        []
       );
     } else if (req.user.role === 'admin') {
       rows = await query('SELECT * FROM failure_alternative_requests ORDER BY created_at DESC');
@@ -458,7 +496,7 @@ router.patch('/alternatives/:id/decision', auth(['farmer']), async (req, res) =>
 
     await connection.execute(
       `UPDATE failure_alternative_requests
-       SET status = ?, final_price_per_kg = ?, generated_transport_request_id = ?, decision_notes = ?, updated_at = NOW()
+       SET status = ?, final_price_per_kg = ?, generated_transport_request_id = ?, decision_notes = ?, expires_at = DATE_ADD(NOW(), INTERVAL 1 HOUR), updated_at = NOW()
        WHERE id = ?`,
       [
         'AcceptedNewPrice',
@@ -474,6 +512,112 @@ router.patch('/alternatives/:id/decision', auth(['farmer']), async (req, res) =>
   } catch (err) {
     await connection.rollback();
     error(res, 'Failed to process farmer decision.', 500);
+  } finally {
+    connection.release();
+  }
+});
+
+router.post('/alternatives/expire-stale', auth(['admin']), async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [candidateRows] = await connection.execute(
+      `SELECT id, product_id
+       FROM failure_alternative_requests
+       WHERE status = 'AcceptedNewPrice'
+         AND expires_at IS NOT NULL
+         AND expires_at <= NOW()
+       FOR UPDATE`
+    );
+
+    await connection.execute(
+      `UPDATE failure_alternative_requests
+       SET status = 'Expired', updated_at = NOW()
+       WHERE status = 'AcceptedNewPrice'
+         AND expires_at IS NOT NULL
+         AND expires_at <= NOW()`
+    );
+
+    for (const row of candidateRows) {
+      if (!row.product_id) continue;
+      await connection.execute(
+        `UPDATE produce SET status = 'Available', sold_quantity = 0, updated_at = NOW() WHERE id = ?`,
+        [row.product_id]
+      );
+    }
+
+    await connection.commit();
+    return success(res, {
+      message: 'Stale alternative requests expired successfully.',
+      expiredCount: candidateRows.length,
+    });
+  } catch (err) {
+    await connection.rollback();
+    return error(res, 'Failed to expire stale alternative requests.', 500);
+  } finally {
+    connection.release();
+  }
+});
+
+router.patch('/alternatives/:id/dealer-accept', auth(['dealer']), async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [altRows] = await connection.execute(
+      `SELECT *
+       FROM failure_alternative_requests
+       WHERE id = ? AND status = 'AcceptedNewPrice' AND expires_at > NOW()
+       FOR UPDATE`,
+      [req.params.id]
+    );
+
+    if (!altRows.length) {
+      await connection.rollback();
+      return error(res, 'This alternative listing has expired.', 410);
+    }
+
+    const alternative = altRows[0];
+
+    await connection.execute(
+      `UPDATE failure_alternative_requests
+       SET status = 'DealerAccepted', converted_dealer_id = ?, converted_dealer_name = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [req.user.id, req.user.name, alternative.id]
+    );
+
+    if (alternative.product_id && alternative.farmer_id) {
+      await connection.execute(
+        `UPDATE deals
+         SET status = 'Completed', delivered_at = NOW(), updated_at = NOW()
+         WHERE id = (
+           SELECT id FROM (
+             SELECT id
+             FROM deals
+             WHERE product_id = ? AND farmer_id = ? AND status = 'Accepted'
+             ORDER BY responded_at DESC, created_at DESC
+             LIMIT 1
+           ) x
+         )`,
+        [alternative.product_id, alternative.farmer_id]
+      );
+    }
+
+    if (alternative.generated_transport_request_id) {
+      await connection.execute(
+        `UPDATE transport_requests
+         SET status = 'Completed', updated_at = NOW()
+         WHERE id = ?`,
+        [alternative.generated_transport_request_id]
+      );
+    }
+
+    await connection.commit();
+    return success(res, { message: 'Alternative accepted. Product marked as delivered.' });
+  } catch (err) {
+    await connection.rollback();
+    return error(res, 'Failed to accept alternative listing.', 500);
   } finally {
     connection.release();
   }

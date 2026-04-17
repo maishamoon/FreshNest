@@ -74,9 +74,20 @@ export default function MyJobs() {
                     <div className="text-right">
                       <Badge status={t.status} />
                       {t.status === 'accepted' && (
-                        <button onClick={() => handleComplete(t.id)} className="mt-3 flex items-center gap-1 px-4 py-2 bg-green text-white rounded-lg hover:bg-green-dark">
-                          <Check className="w-4 h-4" /> Complete
-                        </button>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => handleComplete(t.id)}
+                            className="flex items-center gap-1 px-4 py-2 bg-green text-white rounded-lg hover:bg-green-dark text-sm"
+                          >
+                            <Check className="w-4 h-4" /> Complete
+                          </button>
+                          <Link
+                            to={`/transport/failure?requestId=${t.id}&produceName=${encodeURIComponent(t.produceName || '')}`}
+                            className="flex items-center gap-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+                          >
+                            Report Failure
+                          </Link>
+                        </div>
                       )}
                     </div>
                   </div>

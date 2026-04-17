@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { Package, ShoppingCart, TrendingUp, ArrowRight, Truck, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
@@ -6,12 +7,46 @@ import { StatCard } from '../../components/ui/StatCard';
 import { Topbar } from '../../components/layout/Topbar';
 import { ProposalCard } from '../../components/ui/ProposalCard';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Badge } from '../../components/ui/Badge';
+import { useCountdown } from '../../hooks/useCountdown';
 import toast from 'react-hot-toast';
 import { parseQuantityValue } from '../../utils/helpers';
 
+function AlternativeListingItem({ item, onAccept, isAccepting }) {
+  const { timeLeft, isExpired } = useCountdown(item.expiresAt);
+
+  return (
+    <div className="rounded-xl border border-forest/10 bg-ivory p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-medium">{item.produceName} • {item.quantity} kg</p>
+        <p className="text-sm text-gray-500">
+          Farmer set new price • ৳{item.finalPricePerKg || 'N/A'}/kg
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        {!isExpired ? (
+          <span className="text-amber-600 font-semibold">{timeLeft} remaining</span>
+        ) : (
+          <Badge status="expired" label="Expired" />
+        )}
+        {!isExpired ? (
+          <button
+            onClick={() => onAccept(item.id)}
+            disabled={isAccepting}
+            className="inline-flex items-center gap-2 rounded-full bg-forest px-4 py-2 text-xs font-semibold text-white transition hover:bg-forest/90"
+          >
+            {isAccepting ? 'Processing...' : 'Accept & Buy'}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function DealerDashboard() {
   const { user } = useAuth();
-  const { products, deals, transport, alternatives, proposals, updateProposal, loadAllData } = useAppData();
+  const { products, deals, transport, alternatives, proposals, updateProposal, dealerAcceptAlternative, loadAllData } = useAppData();
+  const [acceptingIds, setAcceptingIds] = useState([]);
 
   const availableProduce = products.filter((p) => p.status !== 'sold' && parseQuantityValue(p.availableQuantity ?? p.quantity) > 0);
   const myDeals = deals.filter(d => d.dealerId === user?.id);
@@ -24,9 +59,7 @@ export default function DealerDashboard() {
     return product.status === 'sold' || remaining <= 0;
   });
   const activeProposals = proposals.filter((proposal) => proposal.status === 'published');
-  const acceptedAlternatives = alternatives.filter(
-    (item) => item.dealerId === user?.id && item.status === 'acceptednewprice'
-  );
+  const acceptedAlternatives = alternatives.filter((item) => item.status === 'acceptednewprice');
 
   const stats = [
     { icon: Package, label: 'Available Produce', value: availableProduce.length, color: 'green' },
@@ -40,6 +73,19 @@ export default function DealerDashboard() {
       toast.success('Proposal accepted and route updated');
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Failed to accept proposal');
+    }
+  };
+
+  const handleAlternativeAccept = async (alternativeId) => {
+    if (acceptingIds.includes(alternativeId)) return;
+    try {
+      setAcceptingIds((prev) => [...prev, alternativeId]);
+      await dealerAcceptAlternative(alternativeId);
+      toast.success('Alternative accepted successfully');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to accept alternative');
+    } finally {
+      setAcceptingIds((prev) => prev.filter((id) => id !== alternativeId));
     }
   };
 
@@ -126,7 +172,7 @@ export default function DealerDashboard() {
                   <p className="font-medium">{item.produceName}</p>
                   <p className="text-sm text-gray-500">From {item.farmerName || 'Farmer'} • {item.quantity || 'N/A'}</p>
                 </div>
-                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Received</span>
+                <Badge status="delivered" label="Delivered" />
               </div>
             )) : <EmptyState message="No received deliveries yet" />}
           </div>
@@ -175,18 +221,15 @@ export default function DealerDashboard() {
         </div>
 
         <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold">Alternative Selling Updates</h3>
+          <h3 className="mb-4 text-lg font-semibold">Alternative Product Listings</h3>
           <div className="space-y-3">
             {acceptedAlternatives.length > 0 ? acceptedAlternatives.slice(0, 6).map((item) => (
-              <div key={item.id} className="rounded-xl border border-forest/10 bg-ivory p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{item.produceName} • {item.quantity} kg</p>
-                  <p className="text-sm text-gray-500">
-                    Farmer set new price • ৳{item.finalPricePerKg || 'N/A'}/kg
-                  </p>
-                </div>
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Accepted</span>
-              </div>
+              <AlternativeListingItem
+                key={item.id}
+                item={item}
+                onAccept={handleAlternativeAccept}
+                isAccepting={acceptingIds.includes(item.id)}
+              />
             )) : <EmptyState message="No alternative selling updates yet" />}
           </div>
         </div>

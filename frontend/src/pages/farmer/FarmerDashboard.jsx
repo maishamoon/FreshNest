@@ -14,13 +14,16 @@ export default function FarmerDashboard() {
   const { products, transport, deals, alternatives, proposals, updateProposal, decideAlternativeRequest } = useAppData();
   const [priceInputs, setPriceInputs] = useState({});
   const [alternativeInputs, setAlternativeInputs] = useState({});
+  const [showAlternativeHistory, setShowAlternativeHistory] = useState(false);
 
   const myProducts = products.filter((product) => product.farmerId === user?.id);
   const myTransport = transport.filter((item) => item.farmerId === user?.id);
   const myDeals = deals.filter((deal) => deal.farmerId === user?.id);
   const myProposals = proposals.filter((proposal) => proposal.farmerId === user?.id && (proposal.status === 'pendingreview' || proposal.status === 'awaitingfarmerprice'));
   const completedProposals = proposals.filter((proposal) => proposal.farmerId === user?.id && proposal.status === 'completed');
-  const pendingAlternatives = alternatives.filter((item) => item.farmerId === user?.id && item.status === 'pendingfarmerdecision');
+  const myAlternatives = alternatives.filter((item) => item.farmerId === user?.id);
+  const pendingAlternatives = myAlternatives.filter((item) => item.status === 'pendingfarmerdecision');
+  const resolvedAlternatives = myAlternatives.filter((item) => item.status !== 'pendingfarmerdecision');
 
   const completedTransportCount = myTransport.filter((item) => item.status === 'completed').length;
   const activeRequests = myTransport.filter((item) => item.status === 'pending' || item.status === 'accepted').length;
@@ -40,9 +43,9 @@ export default function FarmerDashboard() {
   ];
 
   const handleSubmitPrice = async (proposal) => {
-    const value = priceInputs[proposal.id];
-    if (!value) {
-      toast.error('Enter a farmer price');
+    const value = Number(priceInputs[proposal.id]);
+    if (!value || Number(value) <= 0) {
+      toast.error('Enter a valid farmer price greater than 0');
       return;
     }
 
@@ -61,8 +64,8 @@ export default function FarmerDashboard() {
   const handleAlternativeDecision = async (alternative, action) => {
     const input = alternativeInputs[alternative.id] || {};
 
-    if (action === 'accept_new_price' && !input.newPricePerKg) {
-      toast.error('Enter new price for this alternative request');
+    if (action === 'accept_new_price' && (!input.newPricePerKg || Number(input.newPricePerKg) <= 0)) {
+      toast.error('Enter a valid price greater than 0 for this alternative request');
       return;
     }
 
@@ -219,20 +222,20 @@ export default function FarmerDashboard() {
 
         <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green">Alternative selling</p>
-          <h3 className="mt-2 text-xl font-bold text-forest">Counter offers and return decisions</h3>
+          <h3 className="mt-2 text-xl font-bold text-forest">Delivery failure alternatives</h3>
           <div className="mt-5 space-y-4">
             {pendingAlternatives.length > 0 ? pendingAlternatives.map((item) => (
               <div key={item.id} className="rounded-[1.75rem] border border-amber-200 bg-amber-50/40 p-5 space-y-4 shadow-sm">
                 <div>
                   <p className="font-semibold text-forest">{item.produceName} • {item.quantity} kg</p>
-                  <p className="text-sm text-gray-600">Dealer: {item.dealerName || 'N/A'} {item.dealerPhone ? `• ${item.dealerPhone}` : ''}</p>
-                  <p className="text-sm text-gray-600">Set new price to continue selling or request return.</p>
+                  <p className="text-sm text-gray-600">Transporter: {item.transporterName || 'N/A'}</p>
+                  <p className="text-sm text-gray-600">Delivery failed — choose an action:</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <input
                     type="number"
-                    min="0"
+                    min="0.01"
                     step="0.01"
                     value={alternativeInputs[item.id]?.newPricePerKg || ''}
                     onChange={(event) => setAlternativeInputs((current) => ({
@@ -270,6 +273,39 @@ export default function FarmerDashboard() {
                 </div>
               </div>
             )) : <p className="text-gray-400">No alternative requests pending</p>}
+
+            <div className="rounded-2xl border border-gray-100 bg-ivory p-4">
+              <button
+                onClick={() => setShowAlternativeHistory((current) => !current)}
+                className="flex w-full items-center justify-between text-left"
+              >
+                <span className="font-semibold text-forest">Alternative history ({resolvedAlternatives.length})</span>
+                <span className="text-sm text-slate">{showAlternativeHistory ? 'Hide' : 'Show'}</span>
+              </button>
+
+              {showAlternativeHistory && (
+                <div className="mt-4 space-y-3">
+                  {resolvedAlternatives.length > 0 ? resolvedAlternatives.map((item) => {
+                    const fallbackStatusLabel = String(item.status || 'updated').replace(/_/g, ' ');
+                    return (
+                      <div key={item.id} className="rounded-xl border border-gray-100 bg-white p-4">
+                        <p className="font-medium text-forest">{item.produceName} • {item.quantity} kg</p>
+                        <p className="mt-1 text-sm text-slate">Transporter: {item.transporterName || 'N/A'}</p>
+                        {item.status === 'acceptednewprice' && (
+                          <p className="text-sm text-green-700 mt-2">New price set — listed to dealers</p>
+                        )}
+                        {item.status === 'returned' && (
+                          <p className="text-sm text-slate mt-2">Product returned to your inventory</p>
+                        )}
+                        {item.status !== 'acceptednewprice' && item.status !== 'returned' && (
+                          <p className="text-sm text-slate mt-2">Status: {fallbackStatusLabel}</p>
+                        )}
+                      </div>
+                    );
+                  }) : <p className="text-sm text-gray-500">No resolved alternatives yet</p>}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

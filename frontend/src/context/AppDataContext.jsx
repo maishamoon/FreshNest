@@ -1,11 +1,12 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import api from '../api/axios';
 import { normUser, normProduce, normTrans, normDeal, normFail, normAlternative, normProposal } from '../utils/normalizers';
 import { getUsers } from '../api/users';
 import { getProduce, addProduce, deleteProduce as apiDeleteProduce, updateProduceStatus } from '../api/produce';
 import { getTransport, createTransport, updateTransportStatus } from '../api/transport';
 import { getDeals, createDeal, respondDeal } from '../api/deals';
-import { getFailures, reportFailure, getFailureAlternatives, createFailureAlternative, decideFailureAlternative } from '../api/failures';
+import { getFailures, reportFailure, getFailureAlternatives, createFailureAlternative as apiCreateFailureAlternative, decideFailureAlternative } from '../api/failures';
 import { getProposals, createProposal as apiCreateProposal, updateProposal as apiUpdateProposal } from '../api/proposals';
 
 const AppDataContext = createContext(null);
@@ -220,11 +221,21 @@ export function AppDataProvider({ children }) {
   };
 
   const addFailure = async (failure) => {
+    const reason = String(failure?.reason || '').trim();
+    const transportRequestId = failure?.transportRequestId || failure?.transportId;
+
+    if (!transportRequestId) {
+      throw new Error('Transport request id is required');
+    }
+    if (!reason) {
+      throw new Error('Failure reason is required');
+    }
+
     const payload = {
-      transport_request_id: failure.transportRequestId || failure.transportId,
+      transport_request_id: transportRequestId,
       produce_name: failure.produceName || '',
       route: failure.route || '',
-      reason: failure.reason,
+      reason,
       notes: failure.notes || '',
       alternatives: failure.alternatives || [],
     };
@@ -242,17 +253,41 @@ export function AppDataProvider({ children }) {
       preferred_dealer_location: alternative.preferredDealerLocation,
       notes: alternative.notes || '',
     };
-    await createFailureAlternative(failureId, payload);
+    await apiCreateFailureAlternative(failureId, payload);
+    await loadAllData();
+  };
+
+  const createFailureAlternative = async (failureId, payload) => {
+    if (!failureId) {
+      throw new Error('Failure id is required');
+    }
+    if (!payload || !String(payload.current_location || '').trim() || !String(payload.fruit_type || '').trim()) {
+      throw new Error('Current location and fruit type are required');
+    }
+
+    await apiCreateFailureAlternative(failureId, payload);
     await loadAllData();
   };
 
   const decideAlternativeRequest = async (alternativeId, decision) => {
+    if (!alternativeId) {
+      throw new Error('Alternative id is required');
+    }
+    if (!decision?.action) {
+      throw new Error('Decision action is required');
+    }
+
     const payload = {
       action: decision.action,
-      new_price_per_kg: decision.newPricePerKg || null,
+      new_price_per_kg: decision.newPricePerKg,
       notes: decision.notes || '',
     };
     await decideFailureAlternative(alternativeId, payload);
+    await loadAllData();
+  };
+
+  const dealerAcceptAlternative = async (alternativeId) => {
+    await api.patch(`/failures/alternatives/${alternativeId}/dealer-accept`);
     await loadAllData();
   };
 
@@ -299,7 +334,9 @@ export function AppDataProvider({ children }) {
       updateDeal,
       addFailure,
       addAlternativeRequest,
+      createFailureAlternative,
       decideAlternativeRequest,
+      dealerAcceptAlternative,
       addProposal,
       updateProposal,
     }}>

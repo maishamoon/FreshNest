@@ -1,0 +1,1 @@
+ALTER TABLE deals ADD COLUMN delivered_at DATETIME DEFAULT NULL AFTER responded_at;

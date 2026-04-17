@@ -6,6 +6,7 @@ import { Modal } from '../../components/ui/Modal';
 import { ImageUpload } from '../../components/ui/ImageUpload';
 import { Topbar } from '../../components/layout/Topbar';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Badge } from '../../components/ui/Badge';
 import { PRODUCE_DB, getStorageTips } from '../../utils/produceDB';
 import toast from 'react-hot-toast';
 
@@ -134,7 +135,12 @@ export default function MyProduce() {
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {myProducts.map((product) => {
               const normalizedStatus = String(product.status || 'available').toLowerCase();
-              const displayStatus = normalizedStatus === 'reserved' ? 'available' : normalizedStatus;
+              const displayStatus =
+                normalizedStatus === 'sold'
+                  ? 'Sold Out'
+                  : normalizedStatus === 'reserved'
+                    ? 'Reserved'
+                    : 'Available';
 
               return (
                 <article key={product.id} className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
@@ -145,14 +151,17 @@ export default function MyProduce() {
                       <div className="flex h-full items-center justify-center text-6xl">{product.name?.[0] || '🌿'}</div>
                     )}
                     <div className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-forest shadow-sm backdrop-blur">
-                      {displayStatus === 'sold' ? 'Sold Out' : displayStatus}
+                      {normalizedStatus === 'sold' ? 'Sold Out' : displayStatus}
                     </div>
                   </div>
 
                   <div className="space-y-4 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-xl font-bold text-forest">{product.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-bold text-forest">{product.name}</h3>
+                          <Badge status={product.status} label={displayStatus} />
+                        </div>
                         <p className="mt-1 text-sm text-slate">{product.category || 'Category not set'}</p>
                       </div>
                       <button onClick={() => handleDelete(product.id)} className="rounded-full border border-red-100 p-2 text-red-500 transition hover:bg-red-50" aria-label={`Delete ${product.name}`}>

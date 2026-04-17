@@ -69,7 +69,18 @@ export default function FarmerDeals() {
                       <h4 className="mt-2 text-2xl font-bold text-forest">{d.produceName}</h4>
                       <p className="mt-2 text-sm text-slate">Dealer: {d.dealerName || 'Unknown'}</p>
                     </div>
-                    <Badge status={d.status} />
+                    <div className="text-right">
+                      <Badge status={d.status} />
+                      {d.status === 'accepted' && (
+                        <p className="text-xs text-amber-600 mt-1">⏳ Awaiting transport delivery</p>
+                      )}
+                      {d.status === 'completed' && (
+                        <p className="text-xs text-green-600 mt-1">✅ Delivered successfully</p>
+                      )}
+                      {d.status === 'declined' && (
+                        <p className="text-xs text-slate mt-1">Product is available for new offers</p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">

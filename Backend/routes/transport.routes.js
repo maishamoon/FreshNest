@@ -404,7 +404,7 @@ router.patch('/:id', auth(['farmer', 'transport', 'admin']), async (req, res) =>
             if (targetDealId) {
               await conn.execute(
                 `UPDATE deals
-                 SET status = 'Completed', responded_at = COALESCE(responded_at, NOW()), updated_at = NOW()
+                 SET status = 'Completed', delivered_at = NOW(), responded_at = COALESCE(responded_at, NOW()), updated_at = NOW()
                  WHERE id = ?`,
                 [targetDealId]
               );

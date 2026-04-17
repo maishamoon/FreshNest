@@ -61,7 +61,17 @@ export default function MyDeals() {
                       <h4 className="mt-2 text-2xl font-bold text-forest">{d.produceName}</h4>
                       <p className="mt-2 text-sm text-slate">Farmer: {d.farmerName}</p>
                     </div>
-                    <Badge status={d.status} />
+                    {d.status === 'completed' ? (
+                      <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                        Delivered ✅
+                      </span>
+                    ) : d.status === 'accepted' ? (
+                      <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                        Accepted - Awaiting Delivery
+                      </span>
+                    ) : (
+                      <Badge status={d.status} />
+                    )}
                   </div>
 
                   <div className="mt-5 rounded-2xl bg-ivory p-4 text-sm text-slate">
@@ -70,9 +80,9 @@ export default function MyDeals() {
                   </div>
 
                   {d.status === 'accepted' && (
-                    <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
                       <CheckCircle2 className="h-4 w-4" />
-                      Deal accepted
+                      Accepted - Awaiting Delivery
                     </div>
                   )}
                 </article>

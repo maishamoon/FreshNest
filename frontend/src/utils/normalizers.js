@@ -80,7 +80,12 @@ export const normTrans = (t) => ({
   quantity: t.quantity || null,
   notes: t.notes || '',
   pickupDate: t.pickup_date || null,
-  status: String(t.status || 'open').toLowerCase() === 'open' ? 'pending' : String(t.status || 'open').toLowerCase(),
+  status:
+    String(t.status || 'open').toLowerCase() === 'open'
+      ? 'pending'
+      : String(t.status || 'open').toLowerCase() === 'failed'
+        ? 'failed'
+        : String(t.status || 'open').toLowerCase(),
   createdAt: t.created_at || t.createdAt,
 });
 
@@ -101,6 +106,7 @@ export const normDeal = (d) => ({
   message: d.message,
   status: String(d.status || 'pending').toLowerCase(),
   respondedAt: d.responded_at || null,
+  deliveredAt: d.delivered_at || null,
   createdAt: d.created_at || d.createdAt,
 });
 
@@ -140,6 +146,9 @@ export const normAlternative = (a) => ({
   finalPricePerKg: a.final_price_per_kg === null || a.final_price_per_kg === undefined ? null : Number(a.final_price_per_kg),
   decisionNotes: a.decision_notes || '',
   status: String(a.status || 'PendingFarmerDecision').toLowerCase(),
+  expiresAt: a.expires_at || null,
+  convertedDealerId: a.converted_dealer_id || null,
+  convertedDealerName: a.converted_dealer_name || null,
   createdAt: a.created_at || a.createdAt,
   updatedAt: a.updated_at || a.updatedAt,
 });

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
 import { Modal } from '../../components/ui/Modal';
@@ -9,11 +10,12 @@ import toast from 'react-hot-toast';
 
 export default function ReportFailure() {
   const { user } = useAuth();
-  const { transport, addFailure, addAlternativeRequest } = useAppData();
+  const { transport, addFailure, createFailureAlternative } = useAppData();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAlternativeModalOpen, setIsAlternativeModalOpen] = useState(false);
   const [form, setForm] = useState({ transportId: '', reason: '' });
-  const [alternativeForm, setAlternativeForm] = useState({
+  const [altForm, setAltForm] = useState({
     quantity: '',
     currentLocation: '',
     fruitType: '',
@@ -21,9 +23,20 @@ export default function ReportFailure() {
     preferredDealerLocation: '',
     notes: '',
   });
-  const [latestFailureId, setLatestFailureId] = useState(null);
+  const [failureId, setFailureId] = useState(null);
 
   const acceptedJobs = transport.filter(t => t.transportId === user?.id && t.status === 'accepted');
+
+  useEffect(() => {
+    const requestId = searchParams.get('requestId');
+    if (!requestId) return;
+
+    const matched = acceptedJobs.find((job) => Number(job.id) === Number(requestId));
+    if (!matched) return;
+
+    setForm((current) => ({ ...current, transportId: String(matched.id) }));
+    setIsModalOpen(true);
+  }, [acceptedJobs, searchParams]);
 
   const handleSubmit = async () => {
     if (!form.transportId || !form.reason) {
@@ -53,8 +66,8 @@ export default function ReportFailure() {
 
       toast.success('Failure reported');
       setIsModalOpen(false);
-      setLatestFailureId(failureRecord.id);
-      setAlternativeForm({
+      setFailureId(failureRecord.id);
+      setAltForm({
         quantity: trans.quantity || '',
         currentLocation: trans.fromLocation || '',
         fruitType: trans.produceName || '',
@@ -62,7 +75,6 @@ export default function ReportFailure() {
         preferredDealerLocation: trans.toLocation || '',
         notes: '',
       });
-      setIsAlternativeModalOpen(true);
       setForm({ transportId: '', reason: '' });
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Failed to report failure');
@@ -70,30 +82,31 @@ export default function ReportFailure() {
   };
 
   const handleCreateAlternative = async () => {
-    if (!latestFailureId) {
+    if (!failureId) {
       toast.error('Failure record missing. Please report failure again.');
       return;
     }
-    const currentLocation = String(alternativeForm.currentLocation || '').trim();
-    const fruitType = String(alternativeForm.fruitType || '').trim();
-    const preferredDealerLocation = String(alternativeForm.preferredDealerLocation || '').trim();
+    const currentLocation = String(altForm.currentLocation || '').trim();
+    const fruitType = String(altForm.fruitType || '').trim();
+    const preferredDealerLocation = String(altForm.preferredDealerLocation || '').trim();
 
-    if (!alternativeForm.quantity || !currentLocation || !fruitType || !alternativeForm.pickupDate || !preferredDealerLocation) {
-      toast.error('Please fill all required alternative fields');
+    if (!altForm.quantity || Number(altForm.quantity) <= 0 || !currentLocation || !fruitType || !altForm.pickupDate || !preferredDealerLocation) {
+      toast.error('Please fill all required alternative fields with valid values');
       return;
     }
 
     try {
-      await addAlternativeRequest(latestFailureId, {
-        ...alternativeForm,
-        currentLocation,
-        fruitType,
-        preferredDealerLocation,
+      await createFailureAlternative(failureId, {
+        current_location: currentLocation,
+        fruit_type: fruitType,
+        pickup_date: altForm.pickupDate,
+        preferred_dealer_location: preferredDealerLocation,
+        quantity: altForm.quantity,
+        notes: altForm.notes || '',
       });
       toast.success('Alternative request sent to farmer');
-      setIsAlternativeModalOpen(false);
-      setLatestFailureId(null);
-      setAlternativeForm({
+      setFailureId(null);
+      setAltForm({
         quantity: '',
         currentLocation: '',
         fruitType: '',
@@ -101,6 +114,7 @@ export default function ReportFailure() {
         preferredDealerLocation: '',
         notes: '',
       });
+      navigate('/transport/jobs');
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Failed to create alternative request');
     }
@@ -129,15 +143,88 @@ export default function ReportFailure() {
         {acceptedJobs.length === 0 ? (
           <EmptyState icon={AlertTriangle} message="No accepted jobs to report failure for" />
         ) : (
-          <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2 text-red-600">
-              <ShieldAlert className="h-5 w-5" />
-              <p className="font-semibold">Failure reporting active</p>
+          <div className="space-y-6">
+            <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-2 text-red-600">
+                <ShieldAlert className="h-5 w-5" />
+                <p className="font-semibold">Failure reporting active</p>
+              </div>
+              <p className="mb-4 text-gray-600">You have {acceptedJobs.length} accepted job(s). Select one to report a failure.</p>
+              <button onClick={() => setIsModalOpen(true)} className="rounded-full bg-red-500 px-6 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-red-600">
+                Report Delivery Failure
+              </button>
             </div>
-            <p className="mb-4 text-gray-600">You have {acceptedJobs.length} accepted job(s). Select one to report a failure.</p>
-            <button onClick={() => setIsModalOpen(true)} className="rounded-full bg-red-500 px-6 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-red-600">
-              Report Delivery Failure
-            </button>
+
+            {failureId && (
+              <div className="mt-6 rounded-[2rem] border border-amber-200 bg-amber-50/40 p-6">
+                <h3 className="font-bold text-forest text-lg">Request Alternative Transport</h3>
+                <p className="text-sm text-slate mt-1">Fill in the details to request a new transport for this cargo.</p>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Current Location</label>
+                    <input
+                      value={altForm.currentLocation}
+                      onChange={(e) => setAltForm((current) => ({ ...current, currentLocation: e.target.value }))}
+                      className="w-full p-3 border rounded-xl"
+                      placeholder="Current location"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Fruits Type</label>
+                    <input
+                      value={altForm.fruitType}
+                      onChange={(e) => setAltForm((current) => ({ ...current, fruitType: e.target.value }))}
+                      className="w-full p-3 border rounded-xl"
+                      placeholder="Fruits type"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Pickup Date</label>
+                      <input
+                        type="date"
+                        value={altForm.pickupDate}
+                        onChange={(e) => setAltForm((current) => ({ ...current, pickupDate: e.target.value }))}
+                        className="w-full p-3 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Quantity</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={altForm.quantity}
+                        onChange={(e) => setAltForm((current) => ({ ...current, quantity: e.target.value }))}
+                        className="w-full p-3 border rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Preferred Dealer Location</label>
+                    <input
+                      value={altForm.preferredDealerLocation}
+                      onChange={(e) => setAltForm((current) => ({ ...current, preferredDealerLocation: e.target.value }))}
+                      className="w-full p-3 border rounded-xl"
+                      placeholder="Preferred dealer location"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Notes</label>
+                    <textarea
+                      value={altForm.notes}
+                      onChange={(e) => setAltForm((current) => ({ ...current, notes: e.target.value }))}
+                      className="w-full p-3 border rounded-xl"
+                      rows="3"
+                      placeholder="Alternative route or selling notes"
+                    />
+                  </div>
+                  <button onClick={handleCreateAlternative} className="w-full py-3 bg-forest text-white font-semibold rounded-xl hover:bg-forest/90">
+                    Send Alternative Request
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -160,89 +247,6 @@ export default function ReportFailure() {
         </div>
       </Modal>
 
-      <Modal
-        isOpen={isAlternativeModalOpen}
-        onClose={() => {
-          setIsAlternativeModalOpen(false);
-          setLatestFailureId(null);
-          setAlternativeForm({
-            quantity: '',
-            currentLocation: '',
-            fruitType: '',
-            pickupDate: '',
-            preferredDealerLocation: '',
-            notes: '',
-          });
-        }}
-        title="Create Alternative Request"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Failure submitted. Create an alternative request so farmer can set a new price or return product.
-          </p>
-          <div className="rounded-2xl bg-ivory p-3 text-sm text-slate">Fallback route details are auto-filled from the failed transport job.</div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Quantity</label>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={alternativeForm.quantity}
-              onChange={(e) => setAlternativeForm((current) => ({ ...current, quantity: e.target.value }))}
-              className="w-full p-3 border rounded-xl"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Current Location</label>
-            <input
-              value={alternativeForm.currentLocation}
-              onChange={(e) => setAlternativeForm((current) => ({ ...current, currentLocation: e.target.value }))}
-              className="w-full p-3 border rounded-xl"
-              placeholder="Current location"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Fruits Type</label>
-            <input
-              value={alternativeForm.fruitType}
-              onChange={(e) => setAlternativeForm((current) => ({ ...current, fruitType: e.target.value }))}
-              className="w-full p-3 border rounded-xl"
-              placeholder="Fruits type"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Date</label>
-            <input
-              type="date"
-              value={alternativeForm.pickupDate}
-              onChange={(e) => setAlternativeForm((current) => ({ ...current, pickupDate: e.target.value }))}
-              className="w-full p-3 border rounded-xl"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Preferred Dealer Location</label>
-            <input
-              value={alternativeForm.preferredDealerLocation}
-              onChange={(e) => setAlternativeForm((current) => ({ ...current, preferredDealerLocation: e.target.value }))}
-              className="w-full p-3 border rounded-xl"
-              placeholder="Preferred dealer location"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Notes</label>
-            <textarea
-              value={alternativeForm.notes}
-              onChange={(e) => setAlternativeForm((current) => ({ ...current, notes: e.target.value }))}
-              className="w-full p-3 border rounded-xl"
-              rows="3"
-              placeholder="Alternative route or selling notes"
-            />
-          </div>
-          <button onClick={handleCreateAlternative} className="w-full py-3 bg-forest text-white font-semibold rounded-xl hover:bg-forest/90">
-            Send Alternative Request
-          </button>
-        </div>
-      </Modal>
     </div>
   );
 }
