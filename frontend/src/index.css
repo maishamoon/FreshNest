@@ -13,7 +13,30 @@ body {
   background-image:
     radial-gradient(circle at 8% 10%, rgba(168, 213, 186, 0.35), transparent 36%),
     radial-gradient(circle at 92% 88%, rgba(243, 156, 18, 0.16), transparent 42%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  body {
+    background-attachment: fixed;
+  }
+}
+
+.home-page-bg {
+  background-color: #f8f9f4;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(168, 213, 186, 0.42), transparent 34%),
+    radial-gradient(circle at 86% 14%, rgba(230, 126, 34, 0.2), transparent 31%),
+    radial-gradient(circle at 52% 92%, rgba(39, 174, 96, 0.16), transparent 42%),
+    repeating-linear-gradient(118deg, rgba(39, 174, 96, 0.045) 0 1px, transparent 1px 30px),
+    linear-gradient(180deg, #fffdf8 0%, #f7fbf2 45%, #f2f8ee 100%);
+  background-attachment: scroll, scroll, scroll, scroll, scroll;
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .home-page-bg {
+    background-attachment: fixed, fixed, fixed, fixed, fixed;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -60,4 +83,73 @@ h1, h2, h3, h4, h5, h6 {
 
 .delay-100 {
   animation-delay: 100ms;
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panelFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+    opacity: 0.98;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.harvest-glow-panel {
+  animation: panelFloat 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.harvest-chip {
+  animation: riseIn 420ms ease-out both;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.harvest-status-dot {
+  animation: statusPulse 1.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.harvest-chip:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(27, 67, 50, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harvest-glow-panel,
+  .harvest-chip,
+  .harvest-status-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .harvest-chip:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
