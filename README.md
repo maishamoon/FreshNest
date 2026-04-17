@@ -4,7 +4,7 @@ A full-stack web application for managing post-harvest storage conditions and lo
 
 ## Tech Stack
 
-- **Frontend:** HTML, CSS, Vanilla JavaScript
+- **Frontend:** React js , Tailwind cs , Javascript
 - **Backend:** Node.js, Express
 - **Database:** MySQL
 - **Authentication:** JWT + bcrypt
