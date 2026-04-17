@@ -11,7 +11,21 @@ export function Modal({ isOpen, onClose, title, children, className }) {
     if (!isOpen) return undefined;
 
     const previouslyFocused = document.activeElement;
-    closeButtonRef.current?.focus();
+
+    // Focus first input or interactive element instead of close button
+    const container = dialogRef.current;
+    if (container) {
+      const inputs = container.querySelectorAll('input, textarea, button, select');
+      if (inputs.length > 0) {
+        // Skip close button and focus first form input
+        const firstInput = inputs[0];
+        if (firstInput.getAttribute('aria-label') !== 'Close dialog') {
+          firstInput.focus();
+        } else if (inputs.length > 1) {
+          inputs[1].focus();
+        }
+      }
+    }
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -60,6 +74,7 @@ export function Modal({ isOpen, onClose, title, children, className }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
         className={cn('relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto', className)}
       >
         <div className="flex items-center justify-between p-4 border-b">
